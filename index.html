@@ -28,7 +28,7 @@
             -webkit-tap-highlight-color: transparent; 
             overflow: hidden;
             background: #1a1a1a;
-            touch-action: none; /* ป้องกัน browser zoom/scroll */
+            touch-action: none; 
         }
 
         #map { 
@@ -199,7 +199,6 @@
             </svg>
         </div>
 
-        <!-- เครื่องมือหลัก -->
         <div class="absolute top-6 left-6 z-[1000] flex flex-col gap-3">
             <div id="measureLineBtn" onclick="toggleMeasure('LineString')" class="ai-tool-btn" title="วัดระยะ">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="transform: rotate(45deg);">
@@ -241,7 +240,6 @@
             </div>
         </div>
 
-        <!-- ปุ่มตกลง -->
         <div id="confirmContainer" class="confirm-btn-container">
             <button onclick="finishMeasurement()" class="confirm-btn">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -368,6 +366,31 @@
 
             measureSource = measureVector.getSource();
             draftSource = draftVector.getSource();
+
+            // ข้อ 1: ปรับแก้การคลิกดูแปลงที่ดิน (Popup)
+            map.on('singleclick', (evt) => {
+                // ถ้ายังอยู่ในโหมดวัดที่ดิน ไม่ให้แสดง Popup
+                if (activeMeasureType) return;
+
+                const feature = map.forEachFeatureAtPixel(evt.pixel, (feat, layer) => {
+                    if (layer && layer.get('isParcelLayer')) return feat;
+                });
+
+                if (feature) {
+                    const props = feature.getProperties();
+                    const lonLat = ol.proj.toLonLat(evt.coordinate);
+                    let content = `<div class="p-1"><h3 class="font-bold text-blue-600 mb-2 border-b pb-1">ข้อมูลแปลงที่ดิน</h3><table class="w-full text-xs">`;
+                    for (const [key, val] of Object.entries(props)) {
+                        if (key !== 'geometry') content += `<tr><td class="font-semibold py-0.5 pr-2">${key}:</td><td>${val}</td></tr>`;
+                    }
+                    content += `</table><div class="mt-3 pt-2 border-t text-[10px] text-gray-500">${getUTM(lonLat[1], lonLat[0])}</div></div>`;
+                    document.getElementById('popup-content').innerHTML = content;
+                    overlay.setPosition(evt.coordinate);
+                } else {
+                    overlay.setPosition(undefined);
+                }
+            });
+
             map.on('moveend', () => {
                 const c = ol.proj.toLonLat(map.getView().getCenter());
                 localStorage.setItem('ol_pos_v2', JSON.stringify({ lon: c[0], lat: c[1], zoom: map.getView().getZoom() }));
@@ -413,8 +436,6 @@
                     : new ol.Feature(new ol.geom.Polygon([[cross, cross, cross]]));
                 measureSource.addFeature(f);
             }
-            
-            // แสดงปุ่มตกลงเมื่อมีจุดแรก
             document.getElementById('confirmContainer').style.display = 'block';
             updateDraftLine();
         }
@@ -440,6 +461,7 @@
             const ctrl = document.getElementById('drawControls');
             measureSource.clear(); draftSource.clear();
             document.getElementById('confirmContainer').style.display = 'none';
+            overlay.setPosition(undefined); // ปิด popup ทันทีเมื่อเข้าโหมดวัด
 
             if (activeMeasureType === type) {
                 activeMeasureType = null;
@@ -453,7 +475,6 @@
             cross.style.display = 'block'; ctrl.style.display = 'flex';
         }
 
-        // ข้อ 2: ฟังก์ชันเมื่อกดปุ่ม "ตกลง"
         function finishMeasurement() {
             activeMeasureType = null;
             draftSource.clear();
@@ -486,6 +507,56 @@
                 layer.set('isParcelLayer', true);
                 map.addLayer(layer);
             }
+        });
+
+        // ข้อ 2: ปรับปรุงการเปิดภาพโดรน (Drone Tiles) ให้รองรับมือถือ
+        document.getElementById('folderInput').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            const tileMap = new Map();
+            let metadataFile = null;
+
+            files.forEach(file => {
+                const path = file.webkitRelativePath;
+                if (path.endsWith('tilemapresource.xml') || path.endsWith('metadata.json')) {
+                    metadataFile = file;
+                }
+                // เก็บไฟล์ที่มีนามสกุลภาพลงใน Map เพื่อจำลอง Server
+                if (/\.(png|jpg|jpeg|webp)$/i.test(path)) {
+                    tileMap.set(path, file);
+                }
+            });
+
+            if (tileMap.size === 0) return;
+
+            // สร้าง Custom Tile Source เพื่ออ่านไฟล์จาก File Object โดยตรง
+            const tileSource = new ol.source.XYZ({
+                tileUrlFunction: (tileCoord) => {
+                    const z = tileCoord[0];
+                    const x = tileCoord[1];
+                    const y = tileCoord[2];
+                    
+                    // ค้นหาไฟล์ในรายการที่โหลดมา (รองรับโครงสร้าง z/x/y หรือใกล้เคียง)
+                    for (const [path, file] of tileMap) {
+                        const parts = path.split('/');
+                        // ตรวจสอบว่ามีโครงสร้าง /z/x/y.ext อยู่ในพาธหรือไม่
+                        const nameMatch = path.match(new RegExp(`/${z}/${x}/(-?\\d+)\\.(png|jpg|jpeg|webp)$`, 'i'));
+                        if (nameMatch && parseInt(nameMatch[1]) === y) {
+                            return URL.createObjectURL(file);
+                        }
+                    }
+                    return null;
+                },
+                maxZoom: 22
+            });
+
+            const droneLayer = new ol.layer.Tile({
+                source: tileSource,
+                zIndex: 40
+            });
+            map.addLayer(droneLayer);
+
+            // ซูมไปที่ตำแหน่งโดรนโดยประมาณ (ถ้ามี Metadata หรือใช้ไฟล์แรกเป็นตัวตั้งต้น)
+            map.getView().setZoom(18);
         });
 
         window.onload = init;
