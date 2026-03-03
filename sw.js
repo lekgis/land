@@ -3,12 +3,14 @@ const CACHE_NAME = 'land-app-v2';
 const STATIC_CACHE = 'static-v2';
 const DYNAMIC_CACHE = 'dynamic-v2';
 
-// ✅ ไฟล์ที่ควรแคชทันที (รวม lm.ico)
+// ✅ ไฟล์ที่ควรแคชทันที (ลบ trailing spaces ออก!)
 const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './static/icons/lm.ico',        // ✅ แก้เป็น lm.ico
+  './static/icons/lm.ico',
+  './static/icons/icon-192.png',
+  './static/icons/icon-512.png',
   'https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css',
   'https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js',
   'https://cdn.tailwindcss.com',
