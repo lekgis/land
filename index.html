@@ -5,22 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>แอปวัดที่ดิน อ.เล็ก</title>
     
-    <!-- ✅ Favicon -->
-    <link rel="icon" type="image/x-icon" href="icons/lm.ico">
-    <link rel="shortcut icon" type="image/x-icon" href="icons/lm.ico">
-
-    <!-- ✅ Apple Touch Icon (iOS) -->
-    <link rel="apple-touch-icon" href="icons/lm.ico">
-
-    <!-- ✅ PWA Meta Tags -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="วัดที่ดิน">
-    <meta name="theme-color" content="#3b82f6">
-
-    <!-- ✅ Link to Manifest -->
-    <link rel="manifest" href="manifest.json">
-    
     <!-- Dependencies -->
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -30,19 +14,21 @@
     <script src="https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Prompt:wght@100;200;300;400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap');
 
         :root { 
             --ai-blue: #3b82f6; 
             --ai-dark: #0f172a;
         }
 
+        /* ข้อ 1: ล็อกการย่อขยายหน้าเพจบนมือถือ */
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%;
             font-family: 'Prompt', sans-serif;
             -webkit-tap-highlight-color: transparent; 
             overflow: hidden;
             background: #1a1a1a;
+            touch-action: none; /* ป้องกัน browser zoom/scroll */
         }
 
         #map { 
@@ -90,9 +76,6 @@
             border-color: var(--ai-blue);
         }
 
-        .ai-tool-btn.active .land-pin { fill: white; stroke: white; }
-        .ai-tool-btn.active .land-border { stroke: white; }
-        
         .ai-tool-btn svg { width: 26px; height: 26px; }
         
         .icon-area { 
@@ -114,6 +97,29 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
             border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* ข้อ 2: ปุ่มตกลงกึ่งกลางขอบจอล่าง */
+        .confirm-btn-container {
+            position: absolute;
+            bottom: max(32px, env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1001;
+            display: none;
+        }
+
+        .confirm-btn {
+            background: #22c55e;
+            color: white;
+            padding: 12px 28px;
+            border-radius: 99px;
+            font-weight: 600;
+            box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 2px solid rgba(255,255,255,0.2);
         }
 
         #crosshair {
@@ -163,31 +169,6 @@
             max-height: 200px;
             overflow-y: auto;
             font-size: 13px;
-            padding-right: 5px;
-        }
-        #popup-content::-webkit-scrollbar { width: 4px; }
-        #popup-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-        .ol-popup:after, .ol-popup:before {
-            top: 100%;
-            border: solid transparent;
-            content: " ";
-            height: 0;
-            width: 0;
-            position: absolute;
-            pointer-events: none;
-        }
-        .ol-popup:after {
-            border-top-color: white;
-            border-width: 10px;
-            left: 48px;
-            margin-left: -10px;
-        }
-        .ol-popup:before {
-            border-top-color: #cccccc;
-            border-width: 11px;
-            left: 48px;
-            margin-left: -11px;
         }
         .popup-closer {
             text-decoration: none;
@@ -198,41 +179,9 @@
             font-weight: bold;
             color: #94a3b8;
         }
-        
-        /* ✅ ใน <style> เพิ่มบรรทัดเหล่านี้ */
-
-        /* ป้องกัน page zoom บนมือถือ */
-        #map {
-            touch-action: pan-x pan-y;        /* ✅ อนุญาตเฉพาะแพน ห้ามซูมหน้าเว็บ */
-            overscroll-behavior: none;        /* ✅ ป้องกัน scroll chain ไปยัง body */
-            -webkit-touch-callout: none;      /* ✅ ปิดเมนู context บน iOS */
-            -webkit-user-select: none;        /* ✅ ป้องกันการเลือกข้อความ */
-            user-select: none;
-        }
-
-        /* ✅ ป้องกัน body/html รับ gesture zoom */
-        body, html {
-            touch-action: pan-x pan-y;
-            overscroll-behavior: none;
-        }
-
-        /* ✅ ให้ปุ่มต่างๆ ยังกดได้ปกติ */
-        .ai-tool-btn, .my-location-btn, .ai-fab-add, button, input, label {
-            touch-action: manipulation;       /* ✅ อนุญาตเฉพาะ tap/click */
-        }
-
-        /* สไตล์ปุ่มติดตั้ง */
-        #pwa-install-container {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            display: none;
-        }
     </style>
 </head>
-<body class="bg-slate-900">
+<body>
 
     <div id="map">
         <div class="watermark">อ.เล็ก lekgis</div>
@@ -265,11 +214,11 @@
             <div id="measureAreaBtn" onclick="toggleMeasure('Polygon')" class="ai-tool-btn" title="วัดพื้นที่">
                 <svg class="icon-area" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path class="land-border" d="M12 2 L22 9 L18 21 L6 21 L2 9 Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
-                    <circle class="land-pin" cx="12" cy="2" r="2" fill="white" stroke="currentColor" stroke-width="1" />
-                    <circle class="land-pin" cx="22" cy="9" r="2" fill="white" stroke="currentColor" stroke-width="1" />
-                    <circle class="land-pin" cx="18" cy="21" r="2" fill="white" stroke="currentColor" stroke-width="1" />
-                    <circle class="land-pin" cx="6" cy="21" r="2" fill="white" stroke="currentColor" stroke-width="1" />
-                    <circle class="land-pin" cx="2" cy="9" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                    <circle cx="12" cy="2" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                    <circle cx="22" cy="9" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                    <circle cx="18" cy="21" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                    <circle cx="6" cy="21" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                    <circle cx="2" cy="9" r="2" fill="white" stroke="currentColor" stroke-width="1" />
                 </svg>
             </div>
         </div>
@@ -292,6 +241,14 @@
             </div>
         </div>
 
+        <!-- ปุ่มตกลง -->
+        <div id="confirmContainer" class="confirm-btn-container">
+            <button onclick="finishMeasurement()" class="confirm-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                ตกลง
+            </button>
+        </div>
+
         <div id="drawControls" class="draw-controls">
             <button onclick="undoPoint()" class="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-lg border border-slate-200">
                 <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
@@ -302,82 +259,9 @@
         </div>
     </div>
 
-    <!-- UI สำหรับปุ่มติดตั้ง -->
-    <div id="pwa-install-container">
-        <button id="pwa-install-btn" class="bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2 transform active:scale-95 transition-all animate-bounce">
-            <span class="text-xl">📲</span> ติดตั้งแอปวัดที่ดิน
-        </button>
-    </div>
-
     <script>
-        // 📱 PWA Support Logic (แก้ไขเพื่อความเสถียร)
-        let deferredPrompt;
-        const installContainer = document.getElementById('pwa-install-container');
-        const installBtn = document.getElementById('pwa-install-btn');
-
-        // ตรวจสอบ HTTPS หรือ Localhost
-        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-        if ('serviceWorker' in navigator && isSecure) {
-            window.addEventListener('load', () => {
-                // ใช้ path ให้เป็น relative เสมอเพื่อป้องกันหาไฟล์ไม่เจอ
-                navigator.serviceWorker.register('sw.js')
-                .then((reg) => {
-                    console.log('✅ Service Worker พร้อมใช้งาน:', reg.scope);
-                })
-                .catch(err => console.warn('❌ การลงทะเบียน SW ล้มเหลว:', err.message));
-            });
-
-            // ตรวจจับเหตุการณ์ที่เบราว์เซอร์พร้อมให้ติดตั้ง (Android/Chrome/Edge)
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                installContainer.style.display = 'block';
-                console.log('✨ แอปพร้อมสำหรับการติดตั้ง');
-            });
-
-            installBtn.addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`User response to install: ${outcome}`);
-                    deferredPrompt = null;
-                    installContainer.style.display = 'none';
-                }
-            });
-
-            // เมื่อติดตั้งสำเร็จ
-            window.addEventListener('appinstalled', (evt) => {
-                console.log('🚀 ติดตั้งแอปสำเร็จ!');
-                installContainer.style.display = 'none';
-            });
-        }
-
-        // iOS ปลอม (สร้างคำแนะนำเพราะ iOS ไม่รองรับ beforeinstallprompt)
-        function showIOSInstallHint() {
-            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-            
-            if (isIOS && !isStandalone) {
-                const hint = document.createElement('div');
-                hint.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-white px-5 py-4 rounded-2xl shadow-2xl border border-blue-100 flex flex-col items-center gap-2 min-w-[280px]';
-                hint.innerHTML = `
-                    <div class="text-blue-600 text-2xl font-bold">🍎 สำหรับ iPhone</div>
-                    <div class="text-gray-700 text-sm text-center">
-                        กดปุ่ม <span class="bg-gray-100 px-1 rounded">แชร์ (Share)</span> <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2I4MmY2IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTQgMTJ2OGExIDEgMCAwIDAgMSAxaDE0YTEgMSAwIDAgMCAxLTF2LThNMTEgNmwzLTMtMy0zTTMTQgdi0xMSIvPjwvc3ZnPg==" class="inline w-5 h-5"> <br>
-                        แล้วเลือก <span class="font-bold text-black">"เพิ่มลงในหน้าจอหลัก"</span>
-                    </div>
-                    <button onclick="this.parentElement.remove()" class="text-xs text-gray-400 mt-2">ข้ามการแนะนำ</button>
-                `;
-                document.body.appendChild(hint);
-            }
-        }
-        setTimeout(showIOSInstallHint, 3000);
-
-        // 🗺️ Map Logic (ยังคงเดิมเพื่อการใช้งาน)
         let map, measureSource, measureVector, draftSource, draftVector;
         let activeMeasureType = null;
-        let droneTileLayer = null;
         let overlay;
 
         const NODE_STYLE = new ol.style.Style({
@@ -482,32 +366,6 @@
                 view: new ol.View({ center: ol.proj.fromLonLat([lastPos.lon, lastPos.lat]), zoom: lastPos.zoom, maxZoom: 24, enableRotation: false })
             });
 
-            // ✅ ป้องกัน browser zoom บนแผนที่ (Mobile)
-            const mapElement = document.getElementById('map');
-
-            // ป้องกัน pinch-zoom ของเบราว์เซอร์
-            mapElement.addEventListener('touchstart', (e) => {
-                if (e.touches.length > 1) {
-                    e.preventDefault();  // ✅ ถ้ามี 2 นิ้วขึ้นไป → บล็อก page zoom
-                }
-            }, { passive: false });
-
-            mapElement.addEventListener('touchmove', (e) => {
-                if (e.touches.length > 1) {
-                    e.preventDefault();  // ✅ บล็อก pinch move
-                }
-            }, { passive: false });
-
-            // ✅ ป้องกัน double-tap zoom (iOS Safari)
-            let lastTouchEnd = 0;
-            mapElement.addEventListener('touchend', (e) => {
-                const now = Date.now();
-                if (now - lastTouchEnd <= 300) {
-                    e.preventDefault();  // ✅ บล็อก double-tap zoom
-                }
-                lastTouchEnd = now;
-            }, { passive: false });
-
             measureSource = measureVector.getSource();
             draftSource = draftVector.getSource();
             map.on('moveend', () => {
@@ -516,7 +374,6 @@
                 updateDraftLine();
             });
         }
-
 
         function getCrosshairMapCoordinate() {
             const size = map.getSize();
@@ -556,6 +413,9 @@
                     : new ol.Feature(new ol.geom.Polygon([[cross, cross, cross]]));
                 measureSource.addFeature(f);
             }
+            
+            // แสดงปุ่มตกลงเมื่อมีจุดแรก
+            document.getElementById('confirmContainer').style.display = 'block';
             updateDraftLine();
         }
 
@@ -565,10 +425,10 @@
             const geom = feats[0].getGeometry();
             if (activeMeasureType === 'LineString') {
                 const c = geom.getCoordinates(); 
-                if (c.length > 2) { c.pop(); geom.setCoordinates(c); } else measureSource.clear();
+                if (c.length > 2) { c.pop(); geom.setCoordinates(c); } else { measureSource.clear(); document.getElementById('confirmContainer').style.display = 'none'; }
             } else {
                 const r = geom.getCoordinates()[0];
-                if (r.length > 4) { r.splice(r.length - 2, 1); geom.setCoordinates([r]); } else measureSource.clear();
+                if (r.length > 4) { r.splice(r.length - 2, 1); geom.setCoordinates([r]); } else { measureSource.clear(); document.getElementById('confirmContainer').style.display = 'none'; }
             }
             updateDraftLine();
         }
@@ -579,6 +439,8 @@
             const cross = document.getElementById('crosshair');
             const ctrl = document.getElementById('drawControls');
             measureSource.clear(); draftSource.clear();
+            document.getElementById('confirmContainer').style.display = 'none';
+
             if (activeMeasureType === type) {
                 activeMeasureType = null;
                 lineBtn.classList.remove('active'); areaBtn.classList.remove('active');
@@ -589,6 +451,17 @@
             lineBtn.classList.toggle('active', type === 'LineString');
             areaBtn.classList.toggle('active', type === 'Polygon');
             cross.style.display = 'block'; ctrl.style.display = 'flex';
+        }
+
+        // ข้อ 2: ฟังก์ชันเมื่อกดปุ่ม "ตกลง"
+        function finishMeasurement() {
+            activeMeasureType = null;
+            draftSource.clear();
+            document.getElementById('crosshair').style.display = 'none';
+            document.getElementById('drawControls').style.display = 'none';
+            document.getElementById('confirmContainer').style.display = 'none';
+            document.getElementById('measureLineBtn').classList.remove('active');
+            document.getElementById('measureAreaBtn').classList.remove('active');
         }
 
         function formatThaiArea(sqm) {
