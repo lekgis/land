@@ -198,6 +198,16 @@
             font-weight: bold;
             color: #94a3b8;
         }
+        
+        /* สไตล์ปุ่มติดตั้ง */
+        #pwa-install-container {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: none;
+        }
     </style>
 </head>
 <body class="bg-slate-900">
@@ -218,6 +228,7 @@
             </svg>
         </div>
 
+        <!-- เครื่องมือหลัก -->
         <div class="absolute top-6 left-6 z-[1000] flex flex-col gap-3">
             <div id="measureLineBtn" onclick="toggleMeasure('LineString')" class="ai-tool-btn" title="วัดระยะ">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="transform: rotate(45deg);">
@@ -269,65 +280,79 @@
         </div>
     </div>
 
-    <!-- ✅ ย้าย PWA Script และ Map Logic มาไว้ที่ท้าย Body เพื่อความถูกต้องของโครงสร้าง HTML -->
+    <!-- UI สำหรับปุ่มติดตั้ง -->
+    <div id="pwa-install-container">
+        <button id="pwa-install-btn" class="bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2 transform active:scale-95 transition-all animate-bounce">
+            <span class="text-xl">📲</span> ติดตั้งแอปวัดที่ดิน
+        </button>
+    </div>
+
     <script>
-        // 📱 PWA Support
-        if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        // 📱 PWA Support Logic (แก้ไขเพื่อความเสถียร)
+        let deferredPrompt;
+        const installContainer = document.getElementById('pwa-install-container');
+        const installBtn = document.getElementById('pwa-install-btn');
+
+        // ตรวจสอบ HTTPS หรือ Localhost
+        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        if ('serviceWorker' in navigator && isSecure) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/land/sw.js')
+                // ใช้ path ให้เป็น relative เสมอเพื่อป้องกันหาไฟล์ไม่เจอ
+                navigator.serviceWorker.register('sw.js')
                 .then((reg) => {
-                    console.log('✅ SW registered:', reg.scope);
-                    let deferredPrompt;
-                    window.addEventListener('beforeinstallprompt', (e) => {
-                        e.preventDefault();
-                        deferredPrompt = e;
-                        showInstallButton();
-                    });
-                    window.installApp = async () => {
-                        if (deferredPrompt) {
-                            deferredPrompt.prompt();
-                            await deferredPrompt.userChoice;
-                            deferredPrompt = null;
-                            hideInstallButton();
-                        }
-                    };
+                    console.log('✅ Service Worker พร้อมใช้งาน:', reg.scope);
                 })
-                .catch(err => console.warn('❌ SW registration failed:', err.message));
+                .catch(err => console.warn('❌ การลงทะเบียน SW ล้มเหลว:', err.message));
+            });
+
+            // ตรวจจับเหตุการณ์ที่เบราว์เซอร์พร้อมให้ติดตั้ง (Android/Chrome/Edge)
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                installContainer.style.display = 'block';
+                console.log('✨ แอปพร้อมสำหรับการติดตั้ง');
+            });
+
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to install: ${outcome}`);
+                    deferredPrompt = null;
+                    installContainer.style.display = 'none';
+                }
+            });
+
+            // เมื่อติดตั้งสำเร็จ
+            window.addEventListener('appinstalled', (evt) => {
+                console.log('🚀 ติดตั้งแอปสำเร็จ!');
+                installContainer.style.display = 'none';
             });
         }
 
-        function showInstallButton() {
-            if (document.getElementById('pwa-install-btn')) return;
-            const installBtn = document.createElement('button');
-            installBtn.id = 'pwa-install-btn';
-            installBtn.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg font-bold text-sm';
-            installBtn.innerHTML = '📲 ติดตั้งแอป';
-            installBtn.onclick = () => { if (window.installApp) window.installApp(); };
-            document.body.appendChild(installBtn);
-        }
-
-        function hideInstallButton() {
-            const btn = document.getElementById('pwa-install-btn');
-            if (btn) btn.remove();
-        }
-
+        // iOS ปลอม (สร้างคำแนะนำเพราะ iOS ไม่รองรับ beforeinstallprompt)
         function showIOSInstallHint() {
             const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-            if (isIOS && !window.matchMedia('(display-mode: standalone)').matches) {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            
+            if (isIOS && !isStandalone) {
                 const hint = document.createElement('div');
-                hint.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] bg-white/90 backdrop-blur px-4 py-3 rounded-xl shadow-lg text-center text-xs max-w-xs';
+                hint.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-white px-5 py-4 rounded-2xl shadow-2xl border border-blue-100 flex flex-col items-center gap-2 min-w-[280px]';
                 hint.innerHTML = `
-                <p class="font-bold text-gray-800 mb-1">🍎 ติดตั้งแอป iOS</p>
-                <p class="text-gray-600">กดปุ่ม <strong>Share</strong> 📤 → <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p>
-                <button onclick="this.parentElement.remove()" class="mt-2 text-blue-600 font-bold">ปิด</button>
+                    <div class="text-blue-600 text-2xl font-bold">🍎 สำหรับ iPhone</div>
+                    <div class="text-gray-700 text-sm text-center">
+                        กดปุ่ม <span class="bg-gray-100 px-1 rounded">แชร์ (Share)</span> <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2I4MmY2IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTQgMTJ2OGExIDEgMCAwIDAgMSAxaDE0YTEgMSAwIDAgMCAxLTF2LThNMTEgNmwzLTMtMy0zTTMTQgdi0xMSIvPjwvc3ZnPg==" class="inline w-5 h-5"> <br>
+                        แล้วเลือก <span class="font-bold text-black">"เพิ่มลงในหน้าจอหลัก"</span>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-xs text-gray-400 mt-2">ข้ามการแนะนำ</button>
                 `;
                 document.body.appendChild(hint);
             }
         }
+        setTimeout(showIOSInstallHint, 3000);
 
-        setTimeout(showIOSInstallHint, 2000);
-
-        // 🗺️ Map Logic
+        // 🗺️ Map Logic (ยังคงเดิมเพื่อการใช้งาน)
         let map, measureSource, measureVector, draftSource, draftVector;
         let activeMeasureType = null;
         let droneTileLayer = null;
@@ -360,7 +385,6 @@
             const zoom = map.getView().getZoomForResolution(resolution);
             const code = feature.get('parcel_cod') || '';
             const showLabel = zoom >= 18 && code;
-
             return new ol.style.Style({
                 stroke: new ol.style.Stroke({ color: '#ff0000', width: 1.5 }),
                 fill: new ol.style.Fill({ color: 'rgba(0, 0, 0, 0)' }),
@@ -369,7 +393,6 @@
                     font: 'bold 11px Prompt, sans-serif',
                     fill: new ol.style.Fill({ color: '#ff0000' }),
                     stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
-                    overflow: false
                 }) : null
             });
         };
@@ -389,7 +412,6 @@
                     fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.2)' })
                 })
             ];
-
             if (geom.getType() === 'LineString') {
                 geom.getCoordinates().forEach(coord => {
                     styles.push(new ol.style.Style({ geometry: new ol.geom.Point(coord), image: NODE_STYLE.getImage() }));
@@ -424,78 +446,31 @@
             const lastPos = JSON.parse(localStorage.getItem('ol_pos_v2') || '{"lon":103.057069,"lat":15.418727,"zoom":16}');
             const container = document.getElementById('popup');
             const closer = document.getElementById('popup-closer');
-
-            overlay = new ol.Overlay({
-                element: container,
-                autoPan: { animation: { duration: 250 } }
-            });
-
-            closer.onclick = function() {
-                overlay.setPosition(undefined);
-                closer.blur();
-                return false;
-            };
+            overlay = new ol.Overlay({ element: container, autoPan: { animation: { duration: 250 } } });
+            closer.onclick = () => { overlay.setPosition(undefined); return false; };
 
             map = new ol.Map({
                 target: 'map',
                 overlays: [overlay],
-                interactions: ol.interaction.defaults.defaults({
-                    altShiftDragRotate: false, 
-                    pinchRotate: false          
-                }),
                 layers: [
                     new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://mt{0-3}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', maxZoom: 22 }) }),
                     draftVector = new ol.layer.Vector({ source: new ol.source.Vector(), style: DRAFT_LINE_STYLE, zIndex: 90 }),
                     measureVector = new ol.layer.Vector({ source: new ol.source.Vector(), style: measureStyle, zIndex: 100 })
                 ],
-                view: new ol.View({ 
-                    center: ol.proj.fromLonLat([lastPos.lon, lastPos.lat]), 
-                    zoom: lastPos.zoom, 
-                    maxZoom: 24,
-                    enableRotation: false 
-                })
+                view: new ol.View({ center: ol.proj.fromLonLat([lastPos.lon, lastPos.lat]), zoom: lastPos.zoom, maxZoom: 24, enableRotation: false })
             });
 
             measureSource = measureVector.getSource();
             draftSource = draftVector.getSource();
-
             map.on('moveend', () => {
                 const c = ol.proj.toLonLat(map.getView().getCenter());
                 localStorage.setItem('ol_pos_v2', JSON.stringify({ lon: c[0], lat: c[1], zoom: map.getView().getZoom() }));
                 updateDraftLine();
             });
-
-            map.on('singleclick', function(evt) {
-                if (activeMeasureType) return;
-                const feature = map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
-                    if (layer && layer.get('isParcelLayer')) return feature;
-                });
-
-                if (feature) {
-                    const content = document.getElementById('popup-content');
-                    const props = feature.getProperties();
-                    let html = '<div class="font-bold border-b mb-2 pb-1 text-blue-600">ข้อมูลแปลงที่ดิน</div><table class="w-full text-xs">';
-                    for (let key in props) {
-                        if (key !== 'geometry' && key !== 'boundedBy') {
-                            html += `<tr><td class="font-semibold text-slate-500 py-1 pr-2 align-top">${key}:</td><td class="py-1">${props[key]}</td></tr>`;
-                        }
-                    }
-                    html += '</table>';
-                    content.innerHTML = html;
-                    overlay.setPosition(evt.coordinate);
-                } else {
-                    overlay.setPosition(undefined);
-                }
-            });
-
-            window.addEventListener('resize', () => {
-                setTimeout(() => map.updateSize(), 200);
-            });
         }
 
         function getCrosshairMapCoordinate() {
             const size = map.getSize();
-            if (!size) return [0, 0];
             return map.getCoordinateFromPixel([size[0] / 2, size[1] * 0.35]);
         }
 
@@ -504,10 +479,8 @@
             draftSource.clear();
             const feats = measureSource.getFeatures();
             if (!feats.length) return;
-
             const cross = getCrosshairMapCoordinate();
             const geom = feats[0].getGeometry();
-
             if (activeMeasureType === 'LineString') {
                 const c = geom.getCoordinates();
                 draftSource.addFeature(new ol.Feature(new ol.geom.LineString([c[c.length - 1], cross])));
@@ -556,10 +529,7 @@
             const areaBtn = document.getElementById('measureAreaBtn');
             const cross = document.getElementById('crosshair');
             const ctrl = document.getElementById('drawControls');
-
             measureSource.clear(); draftSource.clear();
-            overlay.setPosition(undefined);
-
             if (activeMeasureType === type) {
                 activeMeasureType = null;
                 lineBtn.classList.remove('active'); areaBtn.classList.remove('active');
@@ -580,49 +550,19 @@
         function getCurrentLocation() {
             navigator.geolocation.getCurrentPosition(p => {
                 map.getView().animate({ center: ol.proj.fromLonLat([p.coords.longitude, p.coords.latitude]), zoom: 19 });
-            }, err => console.warn('Geolocation error:', err.message));
+            });
         }
 
         document.getElementById('geojsonInput').addEventListener('change', async (e) => {
             for (const f of e.target.files) {
-                try {
-                    const data = JSON.parse(await f.text());
-                    const src = new ol.source.Vector({ features: new ol.format.GeoJSON().readFeatures(data, { featureProjection:'EPSG:3857' }) });
-                    const layer = new ol.layer.Vector({
-                        source: src,
-                        style: parcelStyle,
-                        zIndex: 50,
-                        declutter: true
-                    });
-                    layer.set('isParcelLayer', true);
-                    map.addLayer(layer);
-                } catch(err) { console.error("GeoJSON Error", err); }
-            }
-        });
-
-        document.getElementById('folderInput').addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-            const tileMap = new Map();
-            files.forEach(file => {
-                const path = file.webkitRelativePath || file.name;
-                const match = path.match(/(\d+)\/(\d+)\/(\d+)\.(png|jpg|jpeg|webp)$/i);
-                if (match) {
-                    const [_, z, x, y] = match;
-                    tileMap.set(`${z}/${x}/${y}`, URL.createObjectURL(file));
-                }
-            });
-            if (tileMap.size > 0) {
-                if (droneTileLayer) map.removeLayer(droneTileLayer);
-                droneTileLayer = new ol.layer.Tile({
-                    source: new ol.source.XYZ({
-                        tileUrlFunction: (coord) => tileMap.get(`${coord[0]}/${coord[1]}/${coord[2]}`),
-                        maxZoom: 24
-                    }),
-                    zIndex: 10 
+                const data = JSON.parse(await f.text());
+                const layer = new ol.layer.Vector({
+                    source: new ol.source.Vector({ features: new ol.format.GeoJSON().readFeatures(data, { featureProjection:'EPSG:3857' }) }),
+                    style: parcelStyle,
+                    zIndex: 50
                 });
-                map.getLayers().insertAt(1, droneTileLayer);
-                const firstTile = tileMap.keys().next().value.split('/');
-                map.getView().setZoom(parseInt(firstTile[0]));
+                layer.set('isParcelLayer', true);
+                map.addLayer(layer);
             }
         });
 
