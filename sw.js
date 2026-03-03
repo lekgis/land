@@ -1,71 +1,117 @@
-// sw.js - Service Worker สำหรับแอปวัดที่ดิน
-const CACHE_NAME = 'land-app-v2';
-const STATIC_CACHE = 'static-v2';
-const DYNAMIC_CACHE = 'dynamic-v2';
+// ========== การตั้งค่าแคช ==========
+const APP_CACHE_NAME = 'land-app-v2';
+const MAP_CACHE_NAME = 'map-tiles-v2';
 
-// ✅ ไฟล์ที่ควรแคชทันที (ลบ trailing spaces ออก!)
-const STATIC_ASSETS = [
-  './',
+// ไฟล์แอปที่ต้องการแคช
+const urlsToCache = [
+  '/',
   './index.html',
   './manifest.json',
-  './static/icons/lm.ico',
-  './static/icons/icon-192.png',
-  './static/icons/icon-512.png',
-  'https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css',
-  'https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js',
-  'https://cdn.tailwindcss.com',
-  'https://unpkg.com/@turf/turf@6/turf.min.js'
+  'static/icons/lm-192.png',
+  'static/icons/lm-512.png'
 ];
 
-// ติดตั้ง Service Worker
+// URL ของไทล์แผนที่ที่ต้องการแคช (✅ ลบช่องว่างต่อท้ายออก!)
+const TILE_URLS = [
+  'https://mt0.google.com',
+  'https://mt1.google.com',
+  'https://mt2.google.com',
+  'https://mt3.google.com'
+];
+
+// ========== Event: Install ==========
 self.addEventListener('install', (event) => {
+  console.log('🔧 Service Worker installing...');
+  
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())
+    Promise.all([
+      caches.open(APP_CACHE_NAME).then((cache) => {
+        console.log('📦 Caching app assets...');
+        return cache.addAll(urlsToCache).catch((err) => {
+          console.warn('⚠️ Failed to cache app assets:', err);
+        });
+      }),
+      caches.open(MAP_CACHE_NAME).then((cache) => {
+        console.log('🗺️ Map tile cache ready');
+      })
+    ]).then(() => {
+      console.log('✅ Service Worker installed');
+      return self.skipWaiting();
+    })
   );
 });
 
-// เปิดใช้งาน - ลบแคชเก่า
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => 
-      Promise.all(
-        keys.filter((key) => key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
-            .map((key) => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
-  );
-});
-
-// ดึงข้อมูล - Cache First สำหรับ static
+// ========== Event: Fetch ==========
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
+  const url = event.request.url;
   
-  // ✅ Cache First: ไฟล์ static
-  if (STATIC_ASSETS.some(asset => request.url.includes(asset))) {
-    event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request))
-    );
-    return;
+  // ตรวจสอบว่าเป็นคำขอไทล์แผนที่
+  if (TILE_URLS.some(tileUrl => url.includes(tileUrl.replace('https://', '')))) {
+    event.respondWith(handleMapTileRequest(event.request));
+  } else {
+    event.respondWith(handleAppRequest(event.request));
   }
+});
+
+// จัดการคำขอไทล์แผนที่
+async function handleMapTileRequest(request) {
+  const cache = await caches.open(MAP_CACHE_NAME);
   
-  // ✅ Network First: ข้อมูล dynamic (tiles, geojson)
-  if (request.url.includes('tiles') || request.url.includes('localhost')) {
-    event.respondWith(
-      fetch(request)
-        .then((networkRes) => {
-          if (networkRes.ok) {
-            const resClone = networkRes.clone();
-            caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, resClone));
+  try {
+    const cachedResponse = await cache.match(request);
+    
+    const networkFetch = fetch(request).then(async (networkResponse) => {
+      if (networkResponse?.ok) {
+        await cache.put(request, networkResponse.clone());
+      }
+      return networkResponse;
+    }).catch(() => cachedResponse);
+    
+    return cachedResponse || networkFetch;
+  } catch (err) {
+    console.error('❌ Tile error:', err);
+    return fetch(request);
+  }
+}
+
+// จัดการคำขอไฟล์แอป
+async function handleAppRequest(request) {
+  const cache = await caches.open(APP_CACHE_NAME);
+  
+  try {
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) return cachedResponse;
+    
+    const networkResponse = await fetch(request);
+    
+    if (request.url.startsWith(self.location.origin)) {
+      cache.put(request, networkResponse.clone());
+    }
+    
+    return networkResponse;
+  } catch (err) {
+    console.error('❌ App request error:', err);
+    return caches.match(request);
+  }
+}
+
+// ========== Event: Activate ==========
+self.addEventListener('activate', (event) => {
+  console.log('🔄 Service Worker activating...');
+  
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== APP_CACHE_NAME && cacheName !== MAP_CACHE_NAME) {
+            console.log('🗑️ Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
           }
-          return networkRes;
         })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
-  
-  // ✅ Default
-  event.respondWith(fetch(request).catch(() => caches.match(request)));
+      );
+    }).then(() => {
+      console.log('✅ Service Worker activated');
+      return self.clients.claim(); // ✅ สำคัญ: ใช้งานทันทีกับแท็บที่เปิดอยู่
+    })
+  );
 });
