@@ -2,7 +2,7 @@
   "name": "วัดที่ดิน - อ.เล็ก GIS",
   "short_name": "วัดที่ดิน",
   "description": "แอปวัดพื้นที่และระยะทางบนแผนที่ พร้อมภาพถ่ายโดรน",
-  "start_url": "./index.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
@@ -13,16 +13,19 @@
     {
       "src": "static/icons/lm.ico",
       "sizes": "48x48 64x64 128x128 256x256",
-      "type": "image/x-icon",
-      "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
+      "type": "image/x-icon"
+    },
     {
-      "src": "static/screenshots/mobile.png",
-      "sizes": "1080x1920",
+      "src": "static/icons/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "form_factor": "narrow"
+      "purpose": "any maskable"
+    },
+    {
+      "src": "static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "categories": ["utilities", "productivity"],
