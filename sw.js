@@ -6,9 +6,9 @@ const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './static/icons/lm.ico',
-  './static/icons/lm-192.png',
-  './static/icons/lm-512.png',
+  './icons/lm.ico',
+  './icons/lm-192.png',
+  './icons/lm-512.png',
   'https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css',
   'https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js',
   'https://cdn.tailwindcss.com',
@@ -35,3 +35,4 @@ self.addEventListener('fetch', e => {
   }
   e.respondWith(fetch(request).catch(() => caches.match(request)));
 });
+
