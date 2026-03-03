@@ -200,47 +200,6 @@
         }
     </style>
 </head>
-<script>
-// ✅ แก้ไขปัญหา Service Worker ในสภาพแวดล้อม Sandbox
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    // ตรวจสอบว่าไม่ได้รันอยู่ใน Blob หรือ Protocol ที่ไม่รองรับ
-    const isLocalhost = Boolean(
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '[::1]' ||
-      window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
-    );
-
-    // ตรวจสอบ protocol ว่าเป็น https หรือ localhost (Service Worker ต้องการสิ่งนี้)
-    if (window.location.protocol === 'https:' || isLocalhost) {
-      navigator.serviceWorker.register('./sw.js')
-        .then((registration) => {
-          console.log('✅ Service Worker registered:', registration.scope);
-          
-          let deferredPrompt;
-          window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-          });
-          
-          window.installApp = async () => {
-            if (deferredPrompt) {
-              deferredPrompt.prompt();
-              await deferredPrompt.userChoice;
-              deferredPrompt = null;
-            }
-          };
-        })
-        .catch((error) => {
-          // แจ้งเตือนใน Console เบาๆ หากติดเรื่อง Sandbox
-          console.warn('⚠️ Service Worker status:', error.message);
-        });
-    } else {
-        console.log('ℹ️ Service Worker skipped: Not on HTTPS or Localhost');
-    }
-  });
-}
-</script>
 <body class="bg-slate-900">
 
     <div id="map">
@@ -310,7 +269,30 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 
+    <!-- ✅ PWA & Map Scripts -->
     <script>
+        // 📱 PWA Support
+        if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then((reg) => {
+                    console.log('✅ SW registered');
+                    let deferredPrompt;
+                    window.addEventListener('beforeinstallprompt', (e) => {
+                        e.preventDefault();
+                        deferredPrompt = e;
+                    });
+                    window.installApp = async () => {
+                        if (deferredPrompt) {
+                            deferredPrompt.prompt();
+                            await deferredPrompt.userChoice;
+                            deferredPrompt = null;
+                        }
+                    };
+                }).catch(err => console.warn('SW registration skipped or failed:', err.message));
+            });
+        }
+
+        // 🗺️ Map Logic
         let map, measureSource, measureVector, draftSource, draftVector;
         let activeMeasureType = null;
         let droneTileLayer = null;
@@ -478,6 +460,7 @@ if ('serviceWorker' in navigator) {
 
         function getCrosshairMapCoordinate() {
             const size = map.getSize();
+            if (!size) return [0, 0];
             return map.getCoordinateFromPixel([size[0] / 2, size[1] * 0.35]);
         }
 
@@ -562,7 +545,7 @@ if ('serviceWorker' in navigator) {
         function getCurrentLocation() {
             navigator.geolocation.getCurrentPosition(p => {
                 map.getView().animate({ center: ol.proj.fromLonLat([p.coords.longitude, p.coords.latitude]), zoom: 19 });
-            });
+            }, err => console.warn('Geolocation error:', err.message));
         }
 
         document.getElementById('geojsonInput').addEventListener('change', async (e) => {
