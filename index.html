@@ -375,12 +375,22 @@
             map = new ol.Map({
                 target: 'map',
                 overlays: [overlay],
+                // ปรับแต่ง Interactions เพื่อล็อกการหมุน (Rotation)
+                interactions: ol.interaction.defaults.defaults({
+                    altShiftDragRotate: false, // ปิดการหมุนด้วย Alt+Shift+Drag
+                    pinchRotate: false          // ปิดการหมุนด้วยสองนิ้ว (Pinch)
+                }),
                 layers: [
                     new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://mt{0-3}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', maxZoom: 22 }) }),
                     draftVector = new ol.layer.Vector({ source: new ol.source.Vector(), style: DRAFT_LINE_STYLE, zIndex: 90 }),
                     measureVector = new ol.layer.Vector({ source: new ol.source.Vector(), style: measureStyle, zIndex: 100 })
                 ],
-                view: new ol.View({ center: ol.proj.fromLonLat([lastPos.lon, lastPos.lat]), zoom: lastPos.zoom, maxZoom: 24 })
+                view: new ol.View({ 
+                    center: ol.proj.fromLonLat([lastPos.lon, lastPos.lat]), 
+                    zoom: lastPos.zoom, 
+                    maxZoom: 24,
+                    enableRotation: false // ล็อกทิศเหนือเสมอ
+                })
             });
 
             measureSource = measureVector.getSource();
