@@ -1,14 +1,10 @@
 {
   "name": "วัดที่ดิน",
   "short_name": "วัดที่ดิน",
-  "description": "แอปวัดพื้นที่และระยะทางบนแผนที่ พร้อมภาพถ่ายโดรน",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
-  "orientation": "portrait-primary",
-  "lang": "th",
   "icons": [
     {
       "src": "static/icons/lm.ico",
@@ -27,7 +23,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "categories": ["utilities", "productivity"],
-  "prefer_related_applications": false
+  ]
 }
