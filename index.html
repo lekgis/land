@@ -269,28 +269,63 @@
         </div>
     </div>
 
-    <!-- ✅ PWA & Map Scripts -->
+    <!-- ✅ ย้าย PWA Script และ Map Logic มาไว้ที่ท้าย Body เพื่อความถูกต้องของโครงสร้าง HTML -->
     <script>
         // 📱 PWA Support
         if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then((reg) => {
-                    console.log('✅ SW registered');
+                navigator.serviceWorker.register('/land/sw.js')
+                .then((reg) => {
+                    console.log('✅ SW registered:', reg.scope);
                     let deferredPrompt;
                     window.addEventListener('beforeinstallprompt', (e) => {
                         e.preventDefault();
                         deferredPrompt = e;
+                        showInstallButton();
                     });
                     window.installApp = async () => {
                         if (deferredPrompt) {
                             deferredPrompt.prompt();
                             await deferredPrompt.userChoice;
                             deferredPrompt = null;
+                            hideInstallButton();
                         }
                     };
-                }).catch(err => console.warn('SW registration skipped or failed:', err.message));
+                })
+                .catch(err => console.warn('❌ SW registration failed:', err.message));
             });
         }
+
+        function showInstallButton() {
+            if (document.getElementById('pwa-install-btn')) return;
+            const installBtn = document.createElement('button');
+            installBtn.id = 'pwa-install-btn';
+            installBtn.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg font-bold text-sm';
+            installBtn.innerHTML = '📲 ติดตั้งแอป';
+            installBtn.onclick = () => { if (window.installApp) window.installApp(); };
+            document.body.appendChild(installBtn);
+        }
+
+        function hideInstallButton() {
+            const btn = document.getElementById('pwa-install-btn');
+            if (btn) btn.remove();
+        }
+
+        function showIOSInstallHint() {
+            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+            if (isIOS && !window.matchMedia('(display-mode: standalone)').matches) {
+                const hint = document.createElement('div');
+                hint.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] bg-white/90 backdrop-blur px-4 py-3 rounded-xl shadow-lg text-center text-xs max-w-xs';
+                hint.innerHTML = `
+                <p class="font-bold text-gray-800 mb-1">🍎 ติดตั้งแอป iOS</p>
+                <p class="text-gray-600">กดปุ่ม <strong>Share</strong> 📤 → <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p>
+                <button onclick="this.parentElement.remove()" class="mt-2 text-blue-600 font-bold">ปิด</button>
+                `;
+                document.body.appendChild(hint);
+            }
+        }
+
+        setTimeout(showIOSInstallHint, 2000);
 
         // 🗺️ Map Logic
         let map, measureSource, measureVector, draftSource, draftVector;
