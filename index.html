@@ -32,7 +32,7 @@
 
         /* Animation สำหรับลายน้ำกระพริบแบบเลือนจาง */
         @keyframes pulseFade {
-            0% { opacity: 0.2; }
+            0% { opacity: 0.3; }
             50% { opacity: 0.8; }
             100% { opacity: 0.2; }
         }
@@ -196,7 +196,7 @@
                 <!-- ปุ่มวัดระยะ - ไอคอนไม้บรรทัดแนวทะแยง (ปรับให้เพรียวบางลง) -->
                 <div id="measureLineBtn" onclick="toggleMeasure('LineString')" class="ai-tool-btn" title="วัดระยะ">
                     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" style="transform: rotate(45deg);">
-                        <!-- ตัวไม้บรรทัดที่เพรียวบางลง (ลดความสูง/กว้าง) -->
+                        <!-- ตัวไม้บรรทัดที่เพรียวบางลง -->
                         <rect x="3" y="9" width="18" height="6" rx="1" />
                         <!-- ขีดวัดด้านบน -->
                         <line x1="6" y1="9" x2="6" y2="11" />
@@ -263,13 +263,14 @@
             stroke: new ol.style.Stroke({ color: '#ffffff', width: 2, lineDash: [8, 8] })
         });
 
+        // แก้ไข: ปรับสีตัวอักษรในป้ายแสดงข้อมูลเป็นสีดำ (Black)
         const createLabelStyle = (textRows) => {
             return new ol.style.Text({
                 text: textRows.join('\n'),
                 font: 'bold 13px Prompt, sans-serif',
                 textAlign: 'center',
-                fill: new ol.style.Fill({ color: '#3b82f6' }),
-                stroke: new ol.style.Stroke({ color: '#ffffff', width: 4 }),
+                fill: new ol.style.Fill({ color: '#000000' }), // เปลี่ยนจากสีฟ้าเป็นสีดำ
+                stroke: new ol.style.Stroke({ color: '#ffffff', width: 4 }), // ขอบขาวเพื่อให้อ่านง่าย
                 offsetY: 0,
                 lineHeight: 1.4
             });
