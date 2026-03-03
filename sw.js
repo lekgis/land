@@ -1,77 +1,37 @@
-// ========== การตั้งค่าแคช ==========
-const APP_CACHE_NAME = 'land-app-v2';
-const MAP_CACHE_NAME = 'map-tiles-v2';
+const CACHE_NAME = 'land-app-v2';
+const STATIC_CACHE = 'static-v2';
+const DYNAMIC_CACHE = 'dynamic-v2';
 
-// ✅ แก้ path ให้ตรงกับ manifest + GitHub Pages
-const urlsToCache = [
-  '/land/',
-  '/land/index.html',
-  '/land/manifest.json',
-  '/land/static/icons/lm-192.png',  // ✅ แก้ path
-  '/land/static/icons/lm-512.png'
+const STATIC_ASSETS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './static/icons/lm.ico',
+  './static/icons/lm-192.png',
+  './static/icons/lm-512.png',
+  'https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css',
+  'https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js',
+  'https://cdn.tailwindcss.com',
+  'https://unpkg.com/@turf/turf@6/turf.min.js'
 ];
 
-// ✅ ลบช่องว่างท้ายออก!
-const TILE_URLS = [
-  'https://mt0.google.com',
-  'https://mt1.google.com',
-  'https://mt2.google.com',
-  'https://mt3.google.com'
-];
-
-// ========== Event: Install ==========
-self.addEventListener('install', (event) => {
-  console.log('🔧 Service Worker installing...');
-  
-  event.waitUntil(
-    Promise.all([
-      caches.open(APP_CACHE_NAME).then((cache) => {
-        console.log('📦 Caching app assets...');
-        return cache.addAll(urlsToCache).catch((err) => {
-          console.warn('⚠️ Failed to cache app assets:', err);
-        });
-      }),
-      caches.open(MAP_CACHE_NAME).then((cache) => {
-        console.log('🗺️ Map tile cache ready');
-      })
-    ]).then(() => {
-      console.log('✅ Service Worker installed');
-      return self.skipWaiting();
-    })
-  );
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(STATIC_CACHE).then(cache => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting()));
 });
 
-// ========== Event: Fetch ==========
-self.addEventListener('fetch', (event) => {
-  const url = event.request.url;
-  
-  // ✅ แก้ match URL (ลบช่องว่าง)
-  if (TILE_URLS.some(tileUrl => url.includes(tileUrl))) {
-    event.respondWith(handleMapTileRequest(event.request));
-  } else {
-    event.respondWith(handleAppRequest(event.request));
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== STATIC_CACHE && k !== DYNAMIC_CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+});
+
+self.addEventListener('fetch', e => {
+  const { request } = e;
+  if (STATIC_ASSETS.some(a => request.url.includes(a))) {
+    e.respondWith(caches.match(request).then(cached => cached || fetch(request)));
+    return;
   }
-});
-
-// ... (ฟังก์ชัน handleMapTileRequest และ handleAppRequest เหมือนเดิม) ...
-
-// ========== Event: Activate ==========
-self.addEventListener('activate', (event) => {
-  console.log('🔄 Service Worker activating...');
-  
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== APP_CACHE_NAME && cacheName !== MAP_CACHE_NAME) {
-            console.log('🗑️ Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      console.log('✅ Service Worker activated');
-      return self.clients.claim();
-    })
-  );
+  if (request.url.includes('tiles') || request.url.includes('localhost')) {
+    e.respondWith(fetch(request).then(res => { if (res.ok) { const clone = res.clone(); caches.open(DYNAMIC_CACHE).then(c => c.put(request, clone)); } return res; }).catch(() => caches.match(request)));
+    return;
+  }
+  e.respondWith(fetch(request).catch(() => caches.match(request)));
 });
