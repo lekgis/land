@@ -199,6 +199,28 @@
             color: #94a3b8;
         }
         
+        /* ✅ ใน <style> เพิ่มบรรทัดเหล่านี้ */
+
+        /* ป้องกัน page zoom บนมือถือ */
+        #map {
+            touch-action: pan-x pan-y;        /* ✅ อนุญาตเฉพาะแพน ห้ามซูมหน้าเว็บ */
+            overscroll-behavior: none;        /* ✅ ป้องกัน scroll chain ไปยัง body */
+            -webkit-touch-callout: none;      /* ✅ ปิดเมนู context บน iOS */
+            -webkit-user-select: none;        /* ✅ ป้องกันการเลือกข้อความ */
+            user-select: none;
+        }
+
+        /* ✅ ป้องกัน body/html รับ gesture zoom */
+        body, html {
+            touch-action: pan-x pan-y;
+            overscroll-behavior: none;
+        }
+
+        /* ✅ ให้ปุ่มต่างๆ ยังกดได้ปกติ */
+        .ai-tool-btn, .my-location-btn, .ai-fab-add, button, input, label {
+            touch-action: manipulation;       /* ✅ อนุญาตเฉพาะ tap/click */
+        }
+
         /* สไตล์ปุ่มติดตั้ง */
         #pwa-install-container {
             position: fixed;
@@ -460,6 +482,32 @@
                 view: new ol.View({ center: ol.proj.fromLonLat([lastPos.lon, lastPos.lat]), zoom: lastPos.zoom, maxZoom: 24, enableRotation: false })
             });
 
+            // ✅ ป้องกัน browser zoom บนแผนที่ (Mobile)
+            const mapElement = document.getElementById('map');
+
+            // ป้องกัน pinch-zoom ของเบราว์เซอร์
+            mapElement.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 1) {
+                    e.preventDefault();  // ✅ ถ้ามี 2 นิ้วขึ้นไป → บล็อก page zoom
+                }
+            }, { passive: false });
+
+            mapElement.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 1) {
+                    e.preventDefault();  // ✅ บล็อก pinch move
+                }
+            }, { passive: false });
+
+            // ✅ ป้องกัน double-tap zoom (iOS Safari)
+            let lastTouchEnd = 0;
+            mapElement.addEventListener('touchend', (e) => {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                    e.preventDefault();  // ✅ บล็อก double-tap zoom
+                }
+                lastTouchEnd = now;
+            }, { passive: false });
+
             measureSource = measureVector.getSource();
             draftSource = draftVector.getSource();
             map.on('moveend', () => {
@@ -468,6 +516,7 @@
                 updateDraftLine();
             });
         }
+
 
         function getCrosshairMapCoordinate() {
             const size = map.getSize();
@@ -570,4 +619,3 @@
     </script>
 </body>
 </html>
-
