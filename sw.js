@@ -7,8 +7,8 @@ const urlsToCache = [
   '/',
   './index.html',
   './manifest.json',
-  'static/icons/lm-192.png',
-  'static/icons/lm-512.png'
+  '/icons/lm.ico',
+  '/icons/lm.ico'
 ];
 
 // URL ของไทล์แผนที่ที่ต้องการแคช (✅ ลบช่องว่างต่อท้ายออก!)
@@ -115,3 +115,4 @@ self.addEventListener('activate', (event) => {
     })
   );
 });
+
