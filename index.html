@@ -17,8 +17,6 @@
     <!-- Dependencies (✅ ลบช่องว่างท้าย URL) -->
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css">
-    <script src="https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js"></script>
     
     <!-- OpenLayers -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css">
@@ -42,11 +40,60 @@
             touch-action: none; 
         }
 
-        #map { 
+        /* ✅ เพิ่ม Hardware Acceleration สำหรับแผนที่ */
+        #map {
             width: 100%; 
             height: 100dvh; 
             background: #1a1a1a; 
-            position: relative; 
+            position: relative;
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+        }
+
+        #map {
+            transform: translate3d(0, 0, 0);  /* ✅ บังคับใช้ GPU Layer */
+            will-change: transform;            /* ✅ บอกเบราว์เซอร์ล่วงหน้า */
+            contain: layout style paint;       /* ✅ แยกเลเยอร์เรนเดอร์ */
+        }
+        .ol-zooming .ol-layer,
+        .ol-interacting .ol-layer {
+            will-change: transform;
+            image-rendering: pixelated;        /* ✅ ลดการคำนวณขณะแอนิเมชัน */
+        }
+
+        /* ✅ บังคับใช้ GPU สำหรับ layer แผนที่ */
+        .leaflet-container,
+        .leaflet-pane,
+        .leaflet-tile-pane,
+        .leaflet-marker-pane,
+        .leaflet-shadow-pane,
+        .leaflet-overlay-pane {
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+            backface-visibility: hidden;
+            perspective: 1000px;
+        }
+
+        /* ✅ ปิด pointer-events ขณะลากแผนที่ (ลดภาระ CPU) */
+        .leaflet-dragging .leaflet-interactive,
+        .leaflet-dragging .leaflet-marker-pane,
+        .leaflet-dragging .leaflet-popup-pane {
+            pointer-events: none !important;
+        }
+
+        #map {
+            width: 100%; 
+            height: 100dvh; 
+            background: #1a1a1a; 
+            position: relative;
+            
+            /* ✅ GPU Acceleration */
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+            contain: layout style paint;
+            
+            /* ✅ สำคัญ: เปิดแพนสำหรับมือถือ */
+            touch-action: pan-x pan-y;
         }
 
         @keyframes pulseFade {
@@ -346,6 +393,7 @@
         let map, measureSource, measureVector, draftSource, draftVector;
         let activeMeasureType = null;
         let overlay;
+        let moveEndTimeout;  // ✅ เพิ่มบรรทัดนี้
 
         const NODE_STYLE = new ol.style.Style({
             image: new ol.style.Circle({
@@ -371,18 +419,38 @@
         };
 
         const parcelStyle = (feature, resolution) => {
-            const zoom = map.getView().getZoomForResolution(resolution);
+            // ✅ คำนวณ zoom แค่ครั้งเดียว + cache ผลลัพธ์
+            const view = map.getView();
+            const zoom = view.getZoom();
+            
+            // ✅ ซ่อน label เมื่อซูมออก (ลดการเรนเดอร์ข้อความ)
+            if (zoom < 18) {
+                return new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#ff0000', width: 1 }),
+                    fill: new ol.style.Fill({ color: 'rgba(0, 0, 0, 0)' })
+                    // ✅ ไม่สร้าง text style เมื่อไม่จำเป็น
+                });
+            }
+            
             const code = feature.get('parcel_cod') || '';
-            const showLabel = zoom >= 18 && code;
+            if (!code) {
+                return new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#ff0000', width: 1 }),
+                    fill: new ol.style.Fill({ color: 'rgba(0, 0, 0, 0)' })
+                });
+            }
+            
+            // ✅ สร้าง text style เฉพาะเมื่อจำเป็นจริงๆ
             return new ol.style.Style({
                 stroke: new ol.style.Stroke({ color: '#ff0000', width: 1.5 }),
                 fill: new ol.style.Fill({ color: 'rgba(0, 0, 0, 0)' }),
-                text: showLabel ? new ol.style.Text({
+                text: new ol.style.Text({
                     text: code.toString(),
                     font: 'bold 11px Prompt, sans-serif',
                     fill: new ol.style.Fill({ color: '#ff0000' }),
                     stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
-                }) : null
+                    offsetY: -10
+                })
             });
         };
 
@@ -431,47 +499,82 @@
             return styles;
         };
 
+
+
         function init() {
             const lastPos = JSON.parse(localStorage.getItem('ol_pos_v2') || '{"lon":103.057069,"lat":15.418727,"zoom":16}');
             const container = document.getElementById('popup');
             const closer = document.getElementById('popup-closer');
-            overlay = new ol.Overlay({ element: container, autoPan: { animation: { duration: 250 } } });
+            
+            overlay = new ol.Overlay({ 
+                element: container, 
+                autoPan: { animation: { duration: 250 } } 
+            });
+            
             closer.onclick = () => { overlay.setPosition(undefined); return false; };
 
+            // 1. สร้าง Layer แยกไว้เป็นตัวแปร (สะอาดและปลอดภัยกว่า)
+            const googleSatellite = new ol.layer.Tile({
+                source: new ol.source.XYZ({
+                    url: 'https://mt{0-3}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+                    maxZoom: 22
+                })
+            });
+
+            draftVector = new ol.layer.Vector({
+                source: new ol.source.Vector(),
+                style: DRAFT_LINE_STYLE,
+                zIndex: 90
+            });
+
+            measureVector = new ol.layer.Vector({
+                source: new ol.source.Vector(),
+                style: measureStyle,
+                zIndex: 100
+            });
+
+            // 2. สร้าง Map
             map = new ol.Map({
                 target: 'map',
                 overlays: [overlay],
-                layers: [
-                    new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://mt{0-3}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', maxZoom: 22 }) }),
-                    draftVector = new ol.layer.Vector({ source: new ol.source.Vector(), style: DRAFT_LINE_STYLE, zIndex: 90 }),
-                    measureVector = new ol.layer.Vector({ source: new ol.source.Vector(), style: measureStyle, zIndex: 100 })
-                ],
-                view: new ol.View({ center: ol.proj.fromLonLat([lastPos.lon, lastPos.lat]), zoom: lastPos.zoom, maxZoom: 24, enableRotation: false })
+                // ใส่เฉพาะชื่อตัวแปรลงใน Array layers
+                layers: [googleSatellite, draftVector, measureVector], 
+                view: new ol.View({
+                    center: ol.proj.fromLonLat([lastPos.lon, lastPos.lat]),
+                    zoom: lastPos.zoom,
+                    maxZoom: 24,
+                    enableRotation: false
+                })
             });
 
             measureSource = measureVector.getSource();
             draftSource = draftVector.getSource();
 
-            // ข้อ 1: ปรับแก้การคลิกดูแปลงที่ดิน (Popup)
+            // 3. จัดการ Popup (แก้ไขให้ Click เจอ Feature ง่ายขึ้น)
             map.on('singleclick', (evt) => {
-                // ถ้ายังอยู่ในโหมดวัดที่ดิน ไม่ให้แสดง Popup
-                if (activeMeasureType) return;
+                if (typeof activeMeasureType !== 'undefined' && activeMeasureType) return;
 
                 const feature = map.forEachFeatureAtPixel(evt.pixel, (feat, layer) => {
-                    if (layer && layer.get('isParcelLayer')) return feat;
+                    // ถ้าคุณมีการ set 'isParcelLayer' ไว้ใน layer ไหน มันจะ return feature นั้น
+                    // หรือถ้าจะเอาทุก feature ที่คลิกโดน ให้ return feat; ได้เลย
+                    return feat; 
+                }, {
+                    hitTolerance: 5 // เผื่อระยะคลิกให้กดง่ายขึ้นบนมือถือ
                 });
 
                 if (feature) {
                     const props = feature.getProperties();
                     const lonLat = ol.proj.toLonLat(evt.coordinate);
                     let content = `<div class="p-1"><h3 class="font-bold text-blue-600 mb-2 border-b pb-1">ข้อมูลแปลงที่ดิน</h3><table class="w-full text-xs">`;
+                    
                     for (const [key, val] of Object.entries(props)) {
-                        if (key !== 'geometry' && key !== 'boundedBy') {  // ✅ ข้าม geometry + boundedBy
+                        if (key !== 'geometry' && key !== 'boundedBy') {
                             const displayVal = (val === null || val === undefined || val === '' || val === 'null') ? '-' : val;
                             content += `<tr><td class="font-semibold py-0.5 pr-2">${key}:</td><td>${displayVal}</td></tr>`;
                         }
                     }
-                    content += `</table><div class="mt-3 pt-2 border-t text-[10px] text-gray-500">${getUTM(lonLat[1], lonLat[0])}</div></div>`;
+                    content += `</table><div class="mt-3 pt-2 border-t text-[10px] text-gray-500">${typeof getUTM === 'function' ? getUTM(lonLat[1], lonLat[0]) : ''}</div></div>`;
+                    
                     document.getElementById('popup-content').innerHTML = content;
                     overlay.setPosition(evt.coordinate);
                 } else {
@@ -479,12 +582,23 @@
                 }
             });
 
+            // 4. บันทึกตำแหน่งล่าสุด
+            let moveEndTimeout;
             map.on('moveend', () => {
-                const c = ol.proj.toLonLat(map.getView().getCenter());
-                localStorage.setItem('ol_pos_v2', JSON.stringify({ lon: c[0], lat: c[1], zoom: map.getView().getZoom() }));
-                updateDraftLine();
+                clearTimeout(moveEndTimeout);
+                moveEndTimeout = setTimeout(() => {
+                    const view = map.getView();
+                    const center = ol.proj.toLonLat(view.getCenter());
+                    localStorage.setItem('ol_pos_v2', JSON.stringify({ 
+                        lon: center[0], 
+                        lat: center[1], 
+                        zoom: view.getZoom() 
+                    }));
+                    if (typeof updateDraftLine === 'function') updateDraftLine();
+                }, 100);
             });
         }
+
 
         function getCrosshairMapCoordinate() {
             const size = map.getSize();
@@ -584,16 +698,31 @@
             });
         }
 
+        // ✅ โหลด GeoJSON พร้อมตั้งค่าประสิทธิภาพ
         document.getElementById('geojsonInput').addEventListener('change', async (e) => {
             for (const f of e.target.files) {
-                const data = JSON.parse(await f.text());
-                const layer = new ol.layer.Vector({
-                    source: new ol.source.Vector({ features: new ol.format.GeoJSON().readFeatures(data, { featureProjection:'EPSG:3857' }) }),
-                    style: parcelStyle,
-                    zIndex: 50
-                });
-                layer.set('isParcelLayer', true);
-                map.addLayer(layer);
+                try {
+                    const data = JSON.parse(await f.text());
+                    
+                    // ✅ สร้าง Parcel Layer พร้อมตั้งค่าประสิทธิภาพ
+                    parcelLayer = new ol.layer.Vector({
+                        source: new ol.source.Vector({ 
+                            features: new ol.format.GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' }) 
+                        }),
+                        style: parcelStyle,
+                        zIndex: 50,
+                        declutter: true,              // ✅ ลดการซ้อนทับของ label
+                        renderMode: 'image',          // ✅ ใช้ Canvas แทน DOM
+                        updateWhileAnimating: false,  // ✅ ไม่อัปเดตขณะแอนิเมชัน
+                        updateWhileInteracting: false // ✅ ไม่อัปเดตขณะเลื่อน/ซูม
+                    });
+                    parcelLayer.set('isParcelLayer', true);
+                    map.addLayer(parcelLayer);
+                    
+                    console.log(`✅ โหลด GeoJSON สำเร็จ: ${data.features?.length || 0} features`);
+                } catch (err) {
+                    console.error('❌ Error loading GeoJSON:', err);
+                }
             }
         });
 
