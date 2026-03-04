@@ -102,6 +102,15 @@
             100% { opacity: 0.2; }
         }
 
+        /* CSS - เพิ่มใน <style> */
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-bounce {
+          animation: bounce 1s ease-in-out infinite;
+        }
+
         .watermark {
             position: absolute;
             top: 8px; /* ลดระยะจากขอบบน */
@@ -270,9 +279,9 @@
     <!-- UI สำหรับปุ่มติดตั้ง -->
     <!-- ✅ เพิ่ม animate-bounce ที่ container -->
     <div id="pwa-install-container" 
-         style="display:none; position:fixed; bottom:100px; left:50%; transform:translateX(-50%); z-index:9999;"
-         class="animate-bounce">  <!-- ✅ เพิ่มบรรทัดนี้ -->
-      <button id="pwa-install-btn" class="bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2">
+         style="display:none; position:fixed; bottom:100px; left:50%; transform:translateX(-50%); z-index:9999;">
+      <button id="pwa-install-btn" 
+              class="bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2 animate-bounce">
         <span class="text-xl">📲</span> ติดตั้งแอปวัดที่ดิน อ.เล็ก
       </button>
     </div>
@@ -292,6 +301,7 @@
                 .catch(err => console.warn('❌ SW failed:', err.message));
             });
 
+            // JavaScript
             window.addEventListener('beforeinstallprompt', (e) => {
                 e.preventDefault();
                 deferredPrompt = e;
@@ -299,14 +309,14 @@
                 if (installContainer) {
                     installContainer.style.display = 'block';
                     // ✅ เพิ่ม animation เด้ง
-                    installContainer.classList.add('animate-bounce');
+                    const btn = document.getElementById('pwa-install-btn');
+                    btn.classList.add('animate-bounce');
                     
-                    // ✅ (Optional) ลบ animation หลัง 3 วินาที เพื่อไม่ให้เด้งตลอด
+                    // ✅ หยุดเด้งหลัง 5 วินาที
                     setTimeout(() => {
-                        installContainer.classList.remove('animate-bounce');
-                    }, 3000);
+                        btn.classList.remove('animate-bounce');
+                    }, 50000);
                 }
-                console.log('✨ PWA install prompt available');
             });
 
             installBtn?.addEventListener('click', async () => {
