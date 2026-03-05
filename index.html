@@ -837,17 +837,24 @@
                     userLocationOverlay.setPosition(coord);
                     
                     // อัปเดตวงความแม่นยำ (แปลงเมตรเป็นพิกัดแผนที่โดยประมาณ)
-                    if (accuracyOverlay) {
+                    // ✅ ในส่วน callback ของ watchPosition - แก้ไขส่วนอัปเดต accuracy circle:
+                    if (accuracyOverlay && accuracy <= 50) {  /* ✅ แสดงเฉพาะเมื่อความแม่นยำดี (<50ม.) */
                         const accElement = accuracyOverlay.getElement();
-                        // แปลงความแม่นยำ (เมตร) เป็นพิกเซลโดยประมาณที่ zoom 19
                         const zoom = map.getView().getZoom();
-                        const pixelsPerMeter = Math.pow(2, zoom) * 0.59; // ค่าประมาณ
+                        const pixelsPerMeter = Math.pow(2, zoom) * 0.59;
                         const radiusPx = accuracy * pixelsPerMeter;
                         
-                        accElement.style.width = `${radiusPx * 2}px`;
-                        accElement.style.height = `${radiusPx * 2}px`;
+                        // ✅ จำกัดขนาดสูงสุดไม่ให้บังจอ
+                        const maxRadiusPx = 150;
+                        const finalRadiusPx = Math.min(radiusPx, maxRadiusPx);
+                        
+                        accElement.style.width = `${finalRadiusPx * 2}px`;
+                        accElement.style.height = `${finalRadiusPx * 2}px`;
                         accElement.style.display = 'block';
                         accuracyOverlay.setPosition(coord);
+                    } else if (accuracyOverlay) {
+                        // ✅ ซ่อนวงเมื่อความแม่นยำต่ำ
+                        accuracyOverlay.getElement().style.display = 'none';
                     }
                     
                     // ถ้าเป็นครั้งแรก ให้ซูมไปที่ตำแหน่ง
