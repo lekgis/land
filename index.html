@@ -222,7 +222,7 @@ const parcelStyle = (feature, resolution) => {
     const ownerName = `${title}${fname} ${lname}`.trim();
     
     // ✅ ข้อ 1: ตัดชื่อเจ้าของเมื่อเกิน 20 ตัวอักษร
-    const maxNameLength = 20;
+    const maxNameLength = 50;
     const displayName = ownerName.length > maxNameLength 
         ? ownerName.substring(0, maxNameLength) + '...' 
         : ownerName;
@@ -238,7 +238,7 @@ const parcelStyle = (feature, resolution) => {
     const styles = [
         new ol.style.Style({
             stroke: new ol.style.Stroke({ color: '#ff0000', width: 1.5 }),
-            fill: new ol.style.Fill({ color: 'rgba(255, 0, 0, 0.05)' }) // เติมสีพื้นจางๆ เล็กน้อย
+            fill: new ol.style.Fill({ color: 'rgba(0, 0, 0, 0)' }) // เติมสีพื้นจางๆ เล็กน้อย
         })
     ];
     
@@ -248,7 +248,7 @@ const parcelStyle = (feature, resolution) => {
             text: code.toString(),
             font: 'bold 12px Prompt, sans-serif',
             fill: new ol.style.Fill({ color: '#ff0000' }),
-            stroke: new ol.style.Stroke({ color: '#ffffff', width: 4 }),
+            stroke: new ol.style.Stroke({ color: '#ffffff', width: 2.5 }),
             offsetY: -12,
             textAlign: 'center',
             zIndex: 100
@@ -260,9 +260,9 @@ const parcelStyle = (feature, resolution) => {
         styles.push(new ol.style.Style({
             text: new ol.style.Text({
                 text: displayName,
-                font: 'bold 11px Prompt, sans-serif',
+                font: '12px Prompt, sans-serif',
                 fill: new ol.style.Fill({ color: '#4285F4' }),  // ✅ สีน้ำเงิน
-                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3.5 }),
+                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2.7 }),
                 offsetY: 8,  // ✅ วางใต้บรรทัดแรก
                 textAlign: 'center',
                 zIndex: 100
