@@ -122,10 +122,10 @@ input[type="file"] { display: none; }
     </div>
     <!-- ปุ่มตำแหน่งปัจจุบัน -->
     <div class="location-container">
-        <div onclick="getCurrentLocation()" 
+        <div onclick="zoomToCurrentLocation()" 
              class="my-location-btn" 
              id="locationBtn" 
-             title="ติดตามตำแหน่งฉัน">
+             title="ซูมไปยังตำแหน่งฉัน">
             <svg viewBox="0 0 24 24" id="locationIcon">
                 <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
             </svg>
@@ -519,6 +519,9 @@ function formatThaiArea(sqm) {
 // ✅ ตัวแปรจัดการตำแหน่งผู้ใช้
 let userLocationOverlay, accuracyOverlay, watchId = null;
 let isTrackingLocation = false;
+let lastKnownPosition = null;
+
+// ✅ สร้าง Overlay สำหรับจุดตำแหน่งผู้ใช้
 function createUserLocationMarker() {
     const markerEl = document.createElement('div');
     markerEl.className = 'user-location-marker';
@@ -529,6 +532,7 @@ function createUserLocationMarker() {
         zIndex: 1000
     });
     map.addOverlay(userLocationOverlay);
+
     const accuracyEl = document.createElement('div');
     accuracyEl.className = 'accuracy-circle';
     accuracyEl.style.display = 'none';
@@ -540,53 +544,76 @@ function createUserLocationMarker() {
     });
     map.addOverlay(accuracyOverlay);
 }
+// ✅ ฟังก์ชันเริ่มติดตามตำแหน่ง (เรียกอัตโนมัติ)
 function startLocationTracking() {
-    if (!navigator.geolocation) { alert('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง'); return; }
+    if (!navigator.geolocation) {
+        console.warn('⚠️ เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง');
+        return;
+    }
+    
     isTrackingLocation = true;
-    document.querySelector('.my-location-btn').classList.add('active');
-    const options = { enableHighAccuracy: true, timeout: 1000000, maximumAge: 0 };
+    
+    const options = {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 30000
+    };
+    
     watchId = navigator.geolocation.watchPosition(
         (position) => {
             const { latitude, longitude, accuracy } = position.coords;
             const coord = ol.proj.fromLonLat([longitude, latitude]);
+            
+            // อัปเดตตำแหน่งจุด marker
             userLocationOverlay.setPosition(coord);
+            lastKnownPosition = coord;
+            
+            // อัปเดตวงความแม่นยำ (แสดงเฉพาะเมื่อความแม่นยำ <= 50 เมตร)
             if (accuracyOverlay && accuracy <= 50) {
                 const accElement = accuracyOverlay.getElement();
                 const zoom = map.getView().getZoom();
                 const pixelsPerMeter = Math.pow(2, zoom) * 0.59;
-                const radiusPx = accuracy * pixelsPerMeter;
-                const maxRadiusPx = 150;
-                const finalRadiusPx = Math.min(radiusPx, maxRadiusPx);
-                accElement.style.width = `${finalRadiusPx * 2}px`;
-                accElement.style.height = `${finalRadiusPx * 2}px`;
+                const radiusPx = Math.min(accuracy * pixelsPerMeter, 150); // จำกัดขนาดสูงสุด
+                accElement.style.width = `${radiusPx * 2}px`;
+                accElement.style.height = `${radiusPx * 2}px`;
                 accElement.style.display = 'block';
                 accuracyOverlay.setPosition(coord);
             } else if (accuracyOverlay) {
                 accuracyOverlay.getElement().style.display = 'none';
             }
+            
+            // ซูมไปตำแหน่งครั้งแรกเท่านั้น
             if (!userLocationOverlay._initialZoomed) {
-                map.getView().animate({ center: coord, zoom: 19, duration: 500 });
+                map.getView().animate({
+                    center: coord,
+                    zoom: 19,
+                    duration: 500
+                });
                 userLocationOverlay._initialZoomed = true;
+            }
+            
+            // อัปเดตพิกัดใน UI (ถ้ามี)
+            const coordDisplay = document.getElementById('coord-display');
+            if (coordDisplay) {
+                coordDisplay.textContent = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                coordDisplay.classList.remove('hidden');
             }
         },
         (error) => {
             console.warn('Geolocation error:', error.message);
-            switch(error.code) {
-                case error.PERMISSION_DENIED: alert('กรุณาอนุญาตการเข้าถึงตำแหน่งเพื่อใช้งานฟีเจอร์นี้'); break;
-                case error.POSITION_UNAVAILABLE: alert('ไม่สามารถระบุตำแหน่งได้ในขณะนี้'); break;
-                case error.TIMEOUT: alert('การขอตำแหน่งหมดเวลา กรุณาลองใหม่'); break;
-            }
-            stopLocationTracking();
+            // ไม่แสดง alert เพื่อไม่รบกวนผู้ใช้
         },
         options
     );
 }
+// ✅ ฟังก์ชันหยุดติดตามตำแหน่ง (เรียกอัตโนมัติเมื่อแอปถูกพัก)
 function stopLocationTracking() {
     isTrackingLocation = false;
-    document.querySelector('.my-location-btn').classList.remove('active');
-    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
-    if (userLocationOverlay) userLocationOverlay.setPosition(undefined);
-    if (accuracyOverlay) accuracyOverlay.getElement().style.display = 'none';
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+    }
+    // ไม่ซ่อน marker เพื่อให้ผู้ใช้เห็นตำแหน่งสุดท้าย
 }
 function getCurrentLocation() {
     if (isTrackingLocation) { stopLocationTracking(); } else {
@@ -594,8 +621,72 @@ function getCurrentLocation() {
         startLocationTracking();
     }
 }
+// ✅ ฟังก์ชันซูมไปยังตำแหน่งปัจจุบัน (ปุ่มกดแล้วทำแค่ซูม)
+function zoomToCurrentLocation() {
+    if (lastKnownPosition) {
+        map.getView().animate({
+            center: lastKnownPosition,
+            zoom: 19,
+            duration: 500
+        });
+    } else if (userLocationOverlay?.getPosition()) {
+        map.getView().animate({
+            center: userLocationOverlay.getPosition(),
+            zoom: 19,
+            duration: 500
+        });
+    } else {
+        // ถ้ายังไม่มีตำแหน่ง → ขอตำแหน่งครั้งเดียว
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    const coord = ol.proj.fromLonLat([longitude, latitude]);
+                    map.getView().animate({
+                        center: coord,
+                        zoom: 19,
+                        duration: 500
+                    });
+                    lastKnownPosition = coord;
+                    if (userLocationOverlay) userLocationOverlay.setPosition(coord);
+                },
+                () => {},
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+    }
+}
+
+// ✅ เริ่มติดตามตำแหน่งอัตโนมัติเมื่อโหลดหน้าเว็บ
+function initAutoLocationTracking() {
+    if (!userLocationOverlay) createUserLocationMarker();
+    startLocationTracking();
+    console.log('เริ่มติดตามตำแหน่งอัตโนมัติ');
+}
+
+// ✅ จัดการเมื่อแอปถูกพัก/กลับมา (Page Visibility API)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // ✅ แอปถูกพัก/หน้าจอปิด → หยุดติดตามเพื่อประหยัดแบตเตอรี่
+        stopLocationTracking();
+        console.log('⏸️ หยุดติดตามตำแหน่ง (แอปถูกพัก)');
+    } else {
+        // ✅ แอปกลับมาทำงาน → เริ่มติดตามใหม่
+        if (!isTrackingLocation) {
+            startLocationTracking();
+            console.log('▶️ เริ่มติดตามตำแหน่งใหม่ (แอปกลับมา)');
+        }
+    }
+});
+
+// ✅ จัดการเมื่อปิดแอป/รีเฟรชหน้า
+window.addEventListener('beforeunload', () => {
+    stopLocationTracking();
+});
+
+// ✅ อัปเดตขนาดวงความแม่นยำเมื่อซูมแผนที่
 map?.on('moveend', () => {
-    if (accuracyOverlay && userLocationOverlay.getPosition() && isTrackingLocation) {
+    if (accuracyOverlay && userLocationOverlay?.getPosition() && isTrackingLocation) {
         const zoom = map.getView().getZoom();
         const pixelsPerMeter = Math.pow(2, zoom) * 0.59;
         const radiusPx = 10 * pixelsPerMeter;
