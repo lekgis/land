@@ -126,6 +126,57 @@
             animation: pulseFade 3s infinite ease-in-out;
         }
 
+        .my-location-btn.active {
+            background: #4285F4;
+            border-color: #4285F4;
+            box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.3);
+        }
+        .my-location-btn.active svg {
+            fill: white;
+        }
+
+        /* ✅ จุดตำแหน่งผู้ใช้แบบ Google Maps */
+        .user-location-marker {
+            position: relative;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4285F4;
+            border: 3px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+
+        .user-location-marker::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            border: 2px solid #4285F4;
+            animation: pulseRing 2s infinite ease-out;
+            opacity: 0;
+        }
+
+        @keyframes pulseRing {
+            0% { width: 16px; height: 16px; opacity: 0.6; }
+            70% { width: 48px; height: 48px; opacity: 0; }
+            100% { width: 48px; height: 48px; opacity: 0; }
+        }
+
+        /* ✅ วงความแม่นยำ (Accuracy Circle) */
+        .accuracy-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(66, 133, 244, 0.15);
+            border: 1px solid rgba(66, 133, 244, 0.4);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 999;
+            transition: all 0.3s ease;
+        }
+
         .ai-tool-btn {
             width: 46px; height: 46px; border-radius: 14px; /* ปรับขนาดปุ่มเล็กลงเล็กน้อย */
             display: flex; align-items: center; justify-content: center;
@@ -288,6 +339,14 @@
           <span class="block">วัดที่ดิน อ.เล็ก</span>
         </div>
       </button>
+    </div>
+    <!-- ปุ่มตำแหน่งปัจจุบัน - แก้ไข class และเพิ่ม active state -->
+    <div class="location-container">
+        <div onclick="getCurrentLocation()" class="my-location-btn" id="locationBtn" title="ติดตามตำแหน่งฉัน">
+            <svg viewBox="0 0 24 24" id="locationIcon">
+                <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+            </svg>
+        </div>
     </div>
 
     <script>
@@ -573,6 +632,9 @@
             measureSource = measureVector.getSource();
             draftSource = draftVector.getSource();
 
+            // ✅ ในฟังก์ชัน init() เพิ่มบรรทัดนี้หลังสร้าง map:
+            createUserLocationMarker();
+
             // 3. จัดการ Popup (แก้ไขให้ Click เจอ Feature ง่ายขึ้น)
             map.on('singleclick', (evt) => {
                 if (typeof activeMeasureType !== 'undefined' && activeMeasureType) return;
@@ -715,11 +777,147 @@
             return `พื้นที่: ${r}-${n}-${w} ไร่`;
         }
 
-        function getCurrentLocation() {
-            navigator.geolocation.getCurrentPosition(p => {
-                map.getView().animate({ center: ol.proj.fromLonLat([p.coords.longitude, p.coords.latitude]), zoom: 19 });
+        // ✅ ตัวแปรจัดการตำแหน่งผู้ใช้
+        let userLocationOverlay, accuracyOverlay, watchId = null;
+        let isTrackingLocation = false;
+
+        // ✅ สร้าง Overlay สำหรับจุดตำแหน่งผู้ใช้ (แบบ Google Maps)
+        function createUserLocationMarker() {
+            // Marker หลัก (จุดสีฟ้า)
+            const markerEl = document.createElement('div');
+            markerEl.className = 'user-location-marker';
+            
+            userLocationOverlay = new ol.Overlay({
+                element: markerEl,
+                positioning: 'center-center',
+                stopEvent: false,
+                zIndex: 1000
             });
+            map.addOverlay(userLocationOverlay);
+            
+            // วงความแม่นยำ
+            const accuracyEl = document.createElement('div');
+            accuracyEl.className = 'accuracy-circle';
+            accuracyEl.style.display = 'none';
+            
+            accuracyOverlay = new ol.Overlay({
+                element: accuracyEl,
+                positioning: 'center-center',
+                stopEvent: false,
+                zIndex: 999
+            });
+            map.addOverlay(accuracyOverlay);
         }
+
+        // ✅ ฟังก์ชันเริ่มติดตามตำแหน่ง
+        function startLocationTracking() {
+            if (!navigator.geolocation) {
+                alert('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง');
+                return;
+            }
+            
+            isTrackingLocation = true;
+            document.querySelector('.my-location-btn').classList.add('active');
+            
+            // ตัวเลือกสำหรับความแม่นยำสูงบนมือถือ
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+            
+            // ติดตามตำแหน่งแบบ Real-time
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude, accuracy } = position.coords;
+                    const coord = ol.proj.fromLonLat([longitude, latitude]);
+                    
+                    // อัปเดตตำแหน่งจุด marker
+                    userLocationOverlay.setPosition(coord);
+                    
+                    // อัปเดตวงความแม่นยำ (แปลงเมตรเป็นพิกัดแผนที่โดยประมาณ)
+                    if (accuracyOverlay) {
+                        const accElement = accuracyOverlay.getElement();
+                        // แปลงความแม่นยำ (เมตร) เป็นพิกเซลโดยประมาณที่ zoom 19
+                        const zoom = map.getView().getZoom();
+                        const pixelsPerMeter = Math.pow(2, zoom) * 0.59; // ค่าประมาณ
+                        const radiusPx = accuracy * pixelsPerMeter;
+                        
+                        accElement.style.width = `${radiusPx * 2}px`;
+                        accElement.style.height = `${radiusPx * 2}px`;
+                        accElement.style.display = 'block';
+                        accuracyOverlay.setPosition(coord);
+                    }
+                    
+                    // ถ้าเป็นครั้งแรก ให้ซูมไปที่ตำแหน่ง
+                    if (!userLocationOverlay._initialZoomed) {
+                        map.getView().animate({
+                            center: coord,
+                            zoom: 19,
+                            duration: 500
+                        });
+                        userLocationOverlay._initialZoomed = true;
+                    }
+                },
+                (error) => {
+                    console.warn('Geolocation error:', error.message);
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            alert('กรุณาอนุญาตการเข้าถึงตำแหน่งเพื่อใช้งานฟีเจอร์นี้');
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            alert('ไม่สามารถระบุตำแหน่งได้ในขณะนี้');
+                            break;
+                        case error.TIMEOUT:
+                            alert('การขอตำแหน่งหมดเวลา กรุณาลองใหม่');
+                            break;
+                    }
+                    stopLocationTracking();
+                },
+                options
+            );
+        }
+
+        // ✅ ฟังก์ชันหยุดติดตามตำแหน่ง
+        function stopLocationTracking() {
+            isTrackingLocation = false;
+            document.querySelector('.my-location-btn').classList.remove('active');
+            
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            
+            // ซ่อน marker เมื่อหยุดติดตาม
+            if (userLocationOverlay) userLocationOverlay.setPosition(undefined);
+            if (accuracyOverlay) accuracyOverlay.getElement().style.display = 'none';
+        }
+
+        // ✅ แก้ไขฟังก์ชัน getCurrentLocation เดิม
+        function getCurrentLocation() {
+            if (isTrackingLocation) {
+                // ถ้ากำลังติดตามอยู่ ให้หยุด
+                stopLocationTracking();
+            } else {
+                // ถ้ายังไม่ได้สร้าง overlay ให้สร้างก่อน
+                if (!userLocationOverlay) createUserLocationMarker();
+                startLocationTracking();
+            }
+        }
+
+        // ✅ อัปเดตขนาดวงความแม่นยำเมื่อซูมแผนที่
+        map?.on('moveend', () => {
+            if (accuracyOverlay && userLocationOverlay.getPosition() && isTrackingLocation) {
+                const zoom = map.getView().getZoom();
+                const pixelsPerMeter = Math.pow(2, zoom) * 0.59;
+                // ต้องเก็บค่า accuracy ล่าสุดไว้ หรือขอใหม่จาก geolocation
+                // สำหรับความง่าย: ใช้ค่าประมาณ 10 เมตร
+                const radiusPx = 10 * pixelsPerMeter;
+                const accElement = accuracyOverlay.getElement();
+                accElement.style.width = `${radiusPx * 2}px`;
+                accElement.style.height = `${radiusPx * 2}px`;
+            }
+        });
 
         // ✅ โหลด GeoJSON พร้อมตั้งค่าประสิทธิภาพ
         document.getElementById('geojsonInput').addEventListener('change', async (e) => {
@@ -803,5 +1001,4 @@
     </script>
 </body>
 </html>
-
 
