@@ -77,7 +77,34 @@ body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pro
     fill: #2563eb;                    /* ✅ สีน้ำเงินสำหรับไอคอน */
     transition: fill 0.2s ease;
 }
+.ai-record-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  background: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
 
+
+.ai-record-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.record-circle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 2px solid white;         /* ขอบขาว */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
 .ai-fab-add { width: 60px; height: 60px; border-radius: 18px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4); border: 2px solid rgba(255, 255, 255, 0.2); }
 .confirm-btn-container { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 1001; display: none; }
 .confirm-btn { background: #22c55e; color: white; padding: 10px 24px; border-radius: 99px; font-weight: 600; box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3); display: flex; align-items: center; gap: 8px; border: 2px solid rgba(255,255,255,0.2); }
@@ -120,16 +147,15 @@ input[type="file"] { display: none; }
         </div>
       </button>
     </div>
+
     <!-- ปุ่มตำแหน่งปัจจุบัน -->
     <div class="location-container">
-        <div onclick="zoomToCurrentLocation()" 
-             class="my-location-btn" 
-             id="locationBtn" 
-             title="ซูมไปยังตำแหน่งฉัน">
-            <svg viewBox="0 0 24 24" id="locationIcon">
-                <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
-            </svg>
-        </div>
+        <button onclick="zoomToCurrentLocation()" 
+                class="ai-record-btn" 
+                id="locationBtn" 
+                title="ซูมไปยังตำแหน่งฉัน">
+            <div class="record-circle"></div>
+        </button>
     </div>
     <!-- ✅ (เสริม) แสดงพิกัดปัจจุบัน -->
     <div id="coord-display" 
