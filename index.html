@@ -544,7 +544,7 @@ function startLocationTracking() {
     if (!navigator.geolocation) { alert('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง'); return; }
     isTrackingLocation = true;
     document.querySelector('.my-location-btn').classList.add('active');
-    const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+    const options = { enableHighAccuracy: true, timeout: 1000000, maximumAge: 0 };
     watchId = navigator.geolocation.watchPosition(
         (position) => {
             const { latitude, longitude, accuracy } = position.coords;
