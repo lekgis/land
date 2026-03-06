@@ -283,7 +283,7 @@ function showIOSInstallHint() {
     if (isIOS && !isStandalone) {
         const hint = document.createElement('div');
         hint.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-white px-5 py-4 rounded-2xl shadow-2xl text-center text-xs max-w-xs';
-        hint.innerHTML = `<p class="font-bold text-blue-600 mb-1">🍎 สำหรับ iPhone</p><p class="text-gray-700">กดปุ่ม <strong>Share</strong> 📤 → <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p><button onclick="this.parentElement.remove()" class="mt-2 text-blue-600">ปิด</button>`;
+        hint.innerHTML = `<p class="font-bold text-blue-600 mb-1">แอปวัดที่ดิน อ.เล็ก 🍎 iPhone</p><p class="text-gray-700">กดปุ่ม <strong>Share</strong> 📤 → <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p><button onclick="this.parentElement.remove()" class="mt-2 text-blue-600">ปิด</button>`;
         document.body.appendChild(hint);
     }
 }
