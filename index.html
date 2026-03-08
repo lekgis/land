@@ -448,7 +448,9 @@ function init() {
     draftVector = new ol.layer.Vector({
         source: new ol.source.Vector(),
         style: DRAFT_LINE_STYLE,
-        zIndex: 90
+        zIndex: 90,
+        updateWhileInteracting: true,  // ✅ อัปเดตขณะผู้ใช้เลื่อน/แพนแผนที่
+        updateWhileAnimating: true     // ✅ อัปเดตขณะแผนที่กำลังแอนิเมชัน (ซูม, ฟิต)
     });
     measureVector = new ol.layer.Vector({
         source: new ol.source.Vector(),
@@ -465,6 +467,13 @@ function init() {
             maxZoom: 24,
             enableRotation: false
         })
+    });
+    // ✅ เพิ่มส่วนนี้: อัปเดตเส้นปะแบบ Real-time ทุกเฟรมที่แผนที่เรนเดอร์
+    map.on('postrender', function() {
+        // ทำงานเฉพาะตอนเปิดโหมดวัดระยะหรือวัดพื้นที่เท่านั้น
+        if (activeMeasureType) {
+            updateDraftLine();
+        }
     });
     measureSource = measureVector.getSource();
     draftSource = draftVector.getSource();
@@ -502,6 +511,8 @@ function init() {
 }
 function getCrosshairMapCoordinate() {
     const size = map.getSize();
+    if (!size) return null;
+    // ✅ คำนวณพิกัดจากตำแหน่งกลางจอแนวนอน และ 35% ของความสูงจอ (ตามตำแหน่ง crosshair ใน CSS)
     return map.getCoordinateFromPixel([size[0] / 2, size[1] * 0.35]);
 }
 function updateDraftLine() {
