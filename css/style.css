@@ -484,17 +484,45 @@ input[type="file"] {
     display: none; 
 }
 
-.ol-popup { 
-    position: absolute; 
-    background-color: white; 
-    box-shadow: 0 1px 4px rgba(0,0,0,0.2); 
-    padding: 15px; 
-    border-radius: 15px; 
-    border: 1px solid #cccccc; 
-    bottom: 25px; 
-    left: -50px; 
-    min-width: 240px; 
-    max-width: 300px; 
+/* ✅ ✅ ✅ แก้ไขส่วนนี้ ✅ ✅ ✅ */
+.ol-popup {
+    position: absolute;
+    background-color: white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    padding: 15px;
+    border-radius: 15px;
+    border: 1px solid #cccccc;
+    bottom: 3px;
+    left: -50%;                /* ✅ Popup เลื่อนซ้าย 50% */
+    min-width: 240px;
+    max-width: 300px;
+    margin-bottom: 12px;
+    transform: translateX(-50%); /* ✅ เลื่อน popup ไปทางซ้ายอีก 50% */
+}
+
+/* ✅ ✅ ✅ เพิ่มส่วนนี้ ✅ ✅ ✅ */
+.ol-popup::after {
+    content: '';
+    position: absolute;
+    bottom: -16px;
+    left: 50%;                 /* ✅ ลูกศรอยู่กึ่งกลาง (50% ของ popup) */
+    transform: translateX(-50%); /* ✅ ปรับให้กึ่งกลางลูกศรตรงกับจุดคลิก */
+    border-width: 10px 10px 0;
+    border-style: solid;
+    border-color: white transparent transparent transparent;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+}
+
+.ol-popup::before {
+    content: '';
+    position: absolute;
+    bottom: -16px;
+    left: 50%;                 /* ✅ ลูกศรขอบอยู่กึ่งกลาง */
+    transform: translateX(-50%); /* ✅ ปรับให้กึ่งกลาง */
+    border-width: 11px 11px 0;
+    border-style: solid;
+    border-color: #cccccc transparent transparent transparent;
+    z-index: -1;
 }
 
 #popup-content { 
