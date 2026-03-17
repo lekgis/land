@@ -593,7 +593,18 @@ function finishMeasurement() {
 }
 function formatThaiArea(sqm) {
     const r = Math.floor(sqm/1600), n = Math.floor((sqm%1600)/400), w = ((sqm%400)/4).toFixed(1);
-    return `พื้นที่: ${r}-${n}-${w} ไร่`;
+    
+    // ✅ เพิ่มหน่วย ตร.ม. หรือ ตร.กม. ตามขนาดพื้นที่
+    let metricUnit = '';
+    if (sqm < 1000000) {
+        // น้อยกว่า 1 ตร.กม. → แสดงเป็น ตร.ม. (ทศนิยม 2 ตำแหน่ง)
+        metricUnit = sqm.toLocaleString('th-TH', { maximumFractionDigits: 2 }) + ' ตร.ม.';
+    } else {
+        // 1 ตร.กม. ขึ้นไป → แสดงเป็น ตร.กม. (✅ ปรับเป็นทศนิยม 2 ตำแหน่ง)
+        metricUnit = (sqm / 1000000).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + ' ตร.กม.';
+    }
+    
+    return `พื้นที่: ${r}-${n}-${w} ไร่ ${metricUnit}`;
 }
 // ✅ ตัวแปรจัดการตำแหน่งผู้ใช้
 let userLocationOverlay, accuracyOverlay, watchId = null;
