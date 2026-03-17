@@ -1,1216 +1,175 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>แอปวัดที่ดิน อ.เล็ก</title>
-<!-- ✅ Meta Tags สำหรับ PWA -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="วัดที่ดิน">
-<meta name="theme-color" content="#3b82f6">
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/x-icon" href="icons/lm.ico">
-<link rel="apple-touch-icon" href="icons/lm.ico">
-<!-- Dependencies -->
-<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- OpenLayers -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css">
-<script src="https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js"></script>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap');
-:root { --ai-blue: #3b82f6; --ai-dark: #0f172a; }
-body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Prompt', sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; background: #1a1a1a; touch-action: none; }
-#map { width: 100%; height: 100dvh; background: #1a1a1a; position: relative; transform: translate3d(0, 0, 0); will-change: transform; contain: layout style paint; touch-action: pan-x pan-y; }
-.ol-zooming .ol-layer, .ol-interacting .ol-layer { will-change: transform; image-rendering: pixelated; }
-@keyframes pulseFade { 0% { opacity: 0.3; } 50% { opacity: 0.8; } 100% { opacity: 0.2; } }
-@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-.animate-bounce { animation: bounce 1s ease-in-out infinite; }
-.watermark { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2000; color: rgba(255, 255, 255, 1); font-weight: 350; font-size: 12px; text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000; pointer-events: none; letter-spacing: 1px; animation: pulseFade 3s infinite ease-in-out; }
-.my-location-btn.active { background: #4285F4; border-color: #4285F4; box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.3); }
-.my-location-btn.active svg { fill: white; }
-/* ✅ จุดตำแหน่งผู้ใช้แบบ Google Maps */
-.user-location-marker { position: relative; width: 14px; height: 14px; border-radius: 50%; background: #2563eb; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); z-index: 1000; }
-.user-location-marker::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; border-radius: 50%; border: 2px solid #4285F4; animation: pulseRing 2s infinite ease-out; opacity: 0; }
-@keyframes pulseRing { 0% { width: 16px; height: 16px; opacity: 0.8; } 70% { width: 48px; height: 48px; opacity: 0.3; } 100% { width: 48px; height: 48px; opacity: 0; } }
-/* ✅ วงความแม่นยำ - ปรับให้โปร่งใสมากที่สุด (แก้หน้าจอมืด) */
-.accuracy-circle { position: absolute; border-radius: 50%; background: rgba(66, 133, 244, 0.005); border: 1px dashed rgba(66, 133, 244, 0.2); transform: translate(-50%, -50%); pointer-events: none; z-index: 999; transition: all 0.3s ease; display: none; }
-.ai-tool-btn { width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; background: rgba(255, 255, 255, 0.95); color: #475569; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); backdrop-filter: blur(8px); }
-.ai-tool-btn.active { background: var(--ai-blue); color: white; border-color: var(--ai-blue); }
-.ai-tool-btn svg { width: 24px; height: 24px; }
-.icon-area { width: 28px !important; height: 28px !important; }
-/* ✅ ปุ่มตำแหน่งปัจจุบัน - สไตล์สี่เหลี่ยมมุมมนเหมือนแอปสำรวจแผนที่ภาษี */
-.my-location-btn {
-    width: 46px; 
-    height: 46px; 
-    border-radius: 14px;              /* ✅ เปลี่ยนจาก 50% เป็น 14px */
-    background: rgba(255, 255, 255, 0.95);  /* ✅ พื้นหลังโปร่งใสเล็กน้อย */
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);  /* ✅ เงาแบบแอปสำรวจ */
-    cursor: pointer; 
-    border: 1px solid rgba(255, 255, 255, 0.3);  /* ✅ ขอบจางๆ */
-    transition: all 0.2s ease;
-    backdrop-filter: blur(8px);       /* ✅ เอฟเฟกต์เบลอ */
-}
-
-.my-location-btn:hover {
-    transform: scale(1.05);           /* ✅ ขยายเล็กน้อยเมื่อโฮเวอร์ */
-    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-}
-
-.my-location-btn.active {
-    background: #2563eb;              /* ✅ สีน้ำเงินเมื่อติดตามตำแหน่ง */
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
-}
-
-.my-location-btn.active svg {
-    fill: white;                      /* ✅ ไอคอนสีขาวเมื่อแอคทีฟ */
-}
-
-.my-location-btn svg { 
-    width: 24px; 
-    height: 24px; 
-    fill: #2563eb;                    /* ✅ สีน้ำเงินสำหรับไอคอน */
-    transition: fill 0.2s ease;
-}
-.ai-record-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  background: white;
-  border: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-@keyframes pulseRing {
-  0%   { width: 14px; height: 14px; opacity: 0.8; }
-  70%  { width: 50px; height: 50px; opacity: 0.3; }
-  100% { width: 50px; height: 50px; opacity: 0; }
-}
-
-/* ✅ เพิ่ม keyframes สำหรับ record-circle */
-@keyframes pulseRingRecord {
-  0% {
-    width: 14px;
-    height: 14px;
-    opacity: 0.8;
-  }
-  70% {
-    width: 50px;
-    height: 50px;
-    opacity: 0.3;
-  }
-  100% {
-    width: 50px;
-    height: 50px;
-    opacity: 0;
-  }
-}
-
-.ai-record-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.record-circle {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #2563eb;
-  border: 2px solid white;         /* ขอบขาว */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-  position: relative;  /* ✅ เพิ่มบรรทัดนี้ */
-}
-/* ✅ เพิ่ม animation pulse ring */
-.record-circle::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: 2px solid #2563eb;
-  animation: pulseRingRecord 2s infinite ease-out;
-  opacity: 0;
-  pointer-events: none;
-}
-/* ✅ ปุ่มสนับสนุน - สไตล์เดียวกับ ai-tool-btn */
-.support-btn {
-    width: 46px; 
-    height: 46px; 
-    border-radius: 14px;                    /* ✅ มุมมนเหมือนปุ่มอื่น */
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    transition: all 0.2s ease;
-    background: rgba(255, 255, 255, 0.95);  /* ✅ พื้นหลังขาวเหมือนปุ่มอื่น */
-    color: #475569;                          /* ✅ สีไอคอนเทาเข้มเหมือนปุ่มอื่น */
-    cursor: pointer; 
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    backdrop-filter: blur(8px);
-    position: relative;
-    overflow: visible;                       /* ✅ ให้อนิเมชันไอคอนล้นได้ */
-}
-
-/* ✅ โฮเวอร์: ขยายเล็กน้อย + สีไอคอนเข้มขึ้น (เหมือนปุ่มอื่น) */
-.support-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-    color: #1e293b;
-}
-
-.support-btn:active {
-    transform: scale(0.98);
-}
-
-/* ✅ ไอคอนเหรียญบาท - ลายเส้นสีเทาดำ เอียง 15 องศา */
-.support-btn svg {
-    width: 24px; 
-    height: 24px; 
-    fill: none;                              /* ✅ ไม่เติมสี */
-    stroke: currentColor;                    /* ✅ ใช้สีจาก parent (เทา/ดำ) */
-    stroke-width: 1.8;                       /* ✅ ความหนาเส้นเหมือนปุ่มอื่น */
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    transform: rotate(-15deg);               /* ✅ เอียงเล็กน้อยให้ดูโดดเด่น */
-    transition: transform 0.2s ease;
-}
-
-.support-btn:hover svg {
-    transform: rotate(-15deg) scale(1.1);    /* ✅ ขยายไอคอนเมื่อโฮเวอร์ */
-}
-
-/* ✅ อนิเมชันพัลส์แบบนุ่มนวล (ไม่รบกวนการมองเห็น) */
-@keyframes coinPulse {
-    0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
-    50% { box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25); }
-}
-
-.support-btn {
-    animation: coinPulse 3s ease-in-out infinite;
-}
-
-/* ✅ ปุ่มสนับสนุน - สไตล์เดียวกับ ai-tool-btn */
-.support-btn {
-    width: 46px; 
-    height: 46px; 
-    border-radius: 14px;
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    transition: all 0.2s ease;
-    background: rgba(255, 255, 255, 0.95);
-    color: #475569;
-    cursor: pointer; 
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    backdrop-filter: blur(8px);
-    position: relative;
-    overflow: hidden;
-    padding: 6px;                               /* ✅ เพิ่ม padding สำหรับภาพ */
-}
-
-/* ✅ รูปภาพในปุ่มสนับสนุน */
-.support-btn img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;                       /* ✅ ปรับภาพให้พอดีปุ่ม */
-    transition: transform 0.2s ease;
-}
-
-.support-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-}
-
-.support-btn:hover img {
-    transform: scale(1.1);                     /* ✅ ขยายภาพเล็กน้อยเมื่อโฮเวอร์ */
-}
-
-.support-btn:active {
-    transform: scale(0.98);
-}
-
-/* ✅ อนิเมชันพัลส์แบบนุ่มนวล */
-@keyframes coinPulse {
-    0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
-    50% { box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25); }
-}
-
-.support-btn {
-    animation: coinPulse 3s ease-in-out infinite;
-}
-
-/* ✅ Modal สนับสนุน (คงเดิม) */
-#supportModal {
-    display: none;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.7);
-    z-index: 9999;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    animation: modalFadeIn 0.3s ease;
-}
-
-@keyframes modalFadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-.support-modal-content {
-    background: white;
-    border-radius: 20px;
-    padding: 24px;
-    max-width: 340px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    position: relative;
-}
-
-.support-modal-close {
-    position: absolute;
-    top: 12px; right: 16px;
-    font-size: 24px;
-    color: #94a3b8;
-    cursor: pointer;
-    line-height: 1;
-}
-
-.support-modal-close:hover { color: #475569; }
-
-.support-modal-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1e293b;
-    margin-bottom: 16px;
-}
-
-.support-qrcode {
-    width: 200px;
-    height: 200px;
-    margin: 0 auto 16px;
-    border-radius: 12px;
-    border: 3px solid #fbbf24;
-    background: #f8fafc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.support-qrcode img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.support-text {
-    font-size: 14px;
-    color: #475569;
-    line-height: 1.6;
-    margin-bottom: 20px;
-}
-
-.support-text-line1 {
-    font-weight: 600;
-    color: #1e293b;
-    display: block;
-    margin-bottom: 4px;
-}
-
-.support-btn-save {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-}
-
-.support-btn-save:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(34, 197, 94, 0.4);
-}
-
-.support-btn-save:active {
-    transform: translateY(0);
-}
-
-.support-btn-save svg {
-    width: 18px;
-    height: 18px;
-}
-.ai-fab-add { width: 60px; height: 60px; border-radius: 18px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4); border: 2px solid rgba(255, 255, 255, 0.2); }
-.confirm-btn-container { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 1001; display: none; }
-.confirm-btn { background: #22c55e; color: white; padding: 10px 24px; border-radius: 99px; font-weight: 600; box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3); display: flex; align-items: center; gap: 8px; border: 2px solid rgba(255,255,255,0.2); }
-#crosshair { position: absolute; left: 50%; top: 35%; transform: translate(-50%, -50%); z-index: 500; pointer-events: none; display: none; }
-.tool-group-left { position: absolute; top: 10px; left: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
-.tool-group-right { position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
-.draw-controls { position: absolute; bottom: max(10px, env(safe-area-inset-bottom)); right: 10px; z-index: 1000; display: none; flex-direction: column; align-items: center; gap: 12px; }
-.location-container { position: absolute; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; z-index: 1000; }
-.ol-zoom { display: none !important; }
-input[type="file"] { display: none; }
-.ol-popup { position: absolute; background-color: white; box-shadow: 0 1px 4px rgba(0,0,0,0.2); padding: 15px; border-radius: 15px; border: 1px solid #cccccc; bottom: 25px; left: -50px; min-width: 240px; max-width: 300px; }
-#popup-content { max-height: 200px; overflow-y: auto; font-size: 13px; }
-.popup-closer { text-decoration: none; position: absolute; top: 4px; right: 10px; font-size: 18px; font-weight: bold; color: #94a3b8; }
-/* ✅ ป้องกันหน้าจอดำเมื่อเรนเดอร์ */
-.ol-layer { background: transparent !important; }
-.ol-text { text-shadow: 1px 1px 2px rgba(0,0,0,0.8); }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>แอปวัดที่ดิน อ.เล็ก</title>
+    
+    <!-- ✅ Meta Tags สำหรับ PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="วัดที่ดิน">
+    <meta name="theme-color" content="#3b82f6">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="icons/lm.ico">
+    <link rel="apple-touch-icon" href="icons/lm.ico">
+    
+    <!-- ✅ Dependencies -->
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- ✅ OpenLayers -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.3.1/ol.css">
+    <script src="https://cdn.jsdelivr.net/npm/ol@v10.3.1/dist/ol.js"></script>
+    
+    <!-- ✅ เชื่อมต่อไฟล์ CSS แยก -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="map">
-    <div class="watermark">อ.เล็ก lekgis</div>
-    <div id="popup" class="ol-popup">
-        <a href="#" id="popup-closer" class="popup-closer">×</a>
-        <div id="popup-content"></div>
-    </div>
-    <div id="crosshair">
-        <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="50" cy="50" r="2.5" fill="white"/>
-            <circle cx="50" cy="50" r="26" stroke="white" stroke-width="3"/>
-            <path d="M50 0V24M50 76V100M0 50H24M76 50H100" stroke="white" stroke-width="3" stroke-linecap="round"/>
-        </svg>
-    </div>
-    <!-- PWA Install UI -->
-    <div id="pwa-install-container" style="display:none; position:fixed; bottom:100px; left:50%; transform:translateX(-50%); z-index:9999;">
-      <button id="pwa-install-btn" class="bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2 animate-bounce">
-        <span class="text-xl">📲</span>
-        <div class="text-center leading-tight">
-          <span class="block">ติดตั้งแอป</span>
-          <span class="block">วัดที่ดิน อ.เล็ก</span>
+    <div id="map">
+        <div class="watermark">อ.เล็ก lekgis</div>
+        
+        <div id="popup" class="ol-popup">
+            <a href="#" id="popup-closer" class="popup-closer">×</a>
+            <div id="popup-content"></div>
         </div>
-      </button>
-    </div>
-
-    <!-- ปุ่มตำแหน่งปัจจุบัน -->
-    <div class="location-container">
-        <button onclick="zoomToCurrentLocation()" 
-                class="ai-record-btn" 
-                id="locationBtn" 
-                title="ซูมไปยังตำแหน่งฉัน">
-            <div class="record-circle"></div>
-        </button>
-    </div>
-
-    <!-- ✅ (เสริม) แสดงพิกัดปัจจุบัน -->
-    <div id="coord-display" 
-         class="absolute bottom-20 left-4 z-[1001] px-3 py-1.5 bg-transparent rounded-lg text-xs font-mono text-white hidden">
-        กำลังโหลด...
-    </div>
-
-    <!-- กลุ่มปุ่มซ้ายบน -->
-    <div class="tool-group-left">
-        <div id="measureLineBtn" onclick="toggleMeasure('LineString')" class="ai-tool-btn" title="วัดระยะ">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="transform: rotate(45deg);"><rect x="3" y="9" width="18" height="6" rx="1" /><line x1="6" y1="9" x2="6" y2="11" /><line x1="9" y1="9" x2="9" y2="12" /><line x1="12" y1="9" x2="12" y2="11" /><line x1="15" y1="9" x2="15" y2="12" /><line x1="18" y1="9" x2="18" y2="11" /></svg>
+        
+        <div id="crosshair">
+            <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="2.5" fill="white"/>
+                <circle cx="50" cy="50" r="26" stroke="white" stroke-width="3"/>
+                <path d="M50 0V24M50 76V100M0 50H24M76 50H100" stroke="white" stroke-width="3" stroke-linecap="round"/>
+            </svg>
         </div>
-        <div id="measureAreaBtn" onclick="toggleMeasure('Polygon')" class="ai-tool-btn" title="วัดพื้นที่">
-            <svg class="icon-area" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path class="land-border" d="M12 2 L22 9 L18 21 L6 21 L2 9 Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><circle cx="12" cy="2" r="2" fill="white" stroke="currentColor" stroke-width="1" /><circle cx="22" cy="9" r="2" fill="white" stroke="currentColor" stroke-width="1" /><circle cx="18" cy="21" r="2" fill="white" stroke="currentColor" stroke-width="1" /><circle cx="6" cy="21" r="2" fill="white" stroke="currentColor" stroke-width="1" /><circle cx="2" cy="9" r="2" fill="white" stroke="currentColor" stroke-width="1" /></svg>
-        </div>
-    </div>
-    <!-- กลุ่มปุ่มขวาบน -->
-    <div class="tool-group-right">
-        <label for="geojsonInput" class="ai-tool-btn" title="เปิดแผนที่ GeoJSON">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 20L3 17V4L9 7M9 20L15 17M9 20V7M15 17L21 20V7L15 4M15 17V4M9 7L15 4"></path></svg>
-        </label>
-        <input type="file" id="geojsonInput" accept=".geojson,.json" multiple>
-        <label for="folderInput" class="ai-tool-btn" title="เปิดภาพถ่ายโดรน">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"></path></svg>
-        </label>
-        <input type="file" id="folderInput" webkitdirectory directory>
-        <!-- ✅ ปุ่มสนับสนุน (สไตล์เดียวกับปุ่มอื่น) -->
-        <!-- ✅ ปุ่มสนับสนุน (ใช้รูปภาพ pay.png) -->
-        <button onclick="openSupportModal()" class="support-btn" title="สนับสนุนผู้พัฒนา">
-            <img src="https://raw.githubusercontent.com/lekgis/land/main/icons/pay.png" 
-                 alt="สนับสนุน"
-                 onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23475569%22 stroke-width=%221.5%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M12 8v8M9 12h6%22/%3E%3C/svg%3E'">
-        </button>
-    </div>
-    <!-- ปุ่มตกลง -->
-    <div id="confirmContainer" class="confirm-btn-container">
-        <button onclick="finishMeasurement()" class="confirm-btn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            ตกลง
-        </button>
-    </div>
-    <!-- ปุ่มวาด (Undo/Add) -->
-    <div id="drawControls" class="draw-controls">
-        <button onclick="undoPoint()" class="w-11 h-11 rounded-xl bg-white flex items-center justify-center shadow-lg border border-slate-200">
-            <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
-        </button>
-        <button onclick="addPointAtCrosshair()" class="ai-fab-add">
-            <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="3"><path d="M12 4v16m8-8H4" /></svg>
-        </button>
-    </div>
-    <!-- ✅ Modal สนับสนุนผู้พัฒนา -->
-    <div id="supportModal">
-        <div class="support-modal-content">
-            <span class="support-modal-close" onclick="closeSupportModal()">&times;</span>
-            <div class="support-modal-title">💛 สนับสนุนผู้พัฒนา</div>
-            
-            <div class="support-qrcode">
-                <!-- ✅ ใช้ Raw GitHub URL สำหรับโหลดภาพ -->
-                <img id="supportQRImage" 
-                     src="https://raw.githubusercontent.com/lekgis/land/main/icons/qrcode.png" 
-                     alt="QR Code สำหรับสนับสนุน"
-                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22%3E%3Crect fill=%22%23f1f5f9%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2364748b%22 font-size=%2214%22%3EQR Code ไม่พบ%3C/text%3E%3C/svg%3E'">
-            </div>
-            
-            <div class="support-text">
-                <span class="support-text-line1">1 บาท 5 บาท 10 บาท มีค่าสำหรับผู้พัฒนา</span>
-                <span>คนบ้านกุดชุมแสง</span>
-                <span>ขอบพระคุณท่านที่สนับสนุน 🙏</span>
-            </div>
-            
-            <button onclick="saveQRCode()" class="support-btn-save">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5 5-5-5M12 3v12"/>
-                </svg>
-                บันทึก qrcode
+        
+        <!-- PWA Install UI -->
+        <div id="pwa-install-container" style="display:none; position:fixed; bottom:100px; left:50%; transform:translateX(-50%); z-index:9999;">
+            <button id="pwa-install-btn" class="bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2 animate-bounce">
+                <span class="text-xl">📲</span>
+                <div class="text-center leading-tight">
+                    <span class="block">ติดตั้งแอป</span>
+                    <span class="block">วัดที่ดิน อ.เล็ก</span>
+                </div>
             </button>
         </div>
+
+        <!-- ปุ่มตำแหน่งปัจจุบัน -->
+        <div class="location-container">
+            <button onclick="zoomToCurrentLocation()" class="ai-record-btn" id="locationBtn" title="ซูมไปยังตำแหน่งฉัน">
+                <div class="record-circle"></div>
+            </button>
+        </div>
+
+        <!-- ✅ (เสริม) แสดงพิกัดปัจจุบัน -->
+        <div id="coord-display" class="absolute bottom-20 left-4 z-[1001] px-3 py-1.5 bg-transparent rounded-lg text-xs font-mono text-white hidden">
+            กำลังโหลด...
+        </div>
+
+        <!-- กลุ่มปุ่มซ้ายบน -->
+        <div class="tool-group-left">
+            <div id="measureLineBtn" onclick="toggleMeasure('LineString')" class="ai-tool-btn" title="วัดระยะ">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="transform: rotate(45deg);">
+                    <rect x="3" y="9" width="18" height="6" rx="1" />
+                    <line x1="6" y1="9" x2="6" y2="11" />
+                    <line x1="9" y1="9" x2="9" y2="12" />
+                    <line x1="12" y1="9" x2="12" y2="11" />
+                    <line x1="15" y1="9" x2="15" y2="12" />
+                    <line x1="18" y1="9" x2="18" y2="11" />
+                </svg>
+            </div>
+            <div id="measureAreaBtn" onclick="toggleMeasure('Polygon')" class="ai-tool-btn" title="วัดพื้นที่">
+                <svg class="icon-area" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path class="land-border" d="M12 2 L22 9 L18 21 L6 21 L2 9 Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                    <circle cx="12" cy="2" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                    <circle cx="22" cy="9" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                    <circle cx="18" cy="21" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                    <circle cx="6" cy="21" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                    <circle cx="2" cy="9" r="2" fill="white" stroke="currentColor" stroke-width="1" />
+                </svg>
+            </div>
+        </div>
+        
+        <!-- กลุ่มปุ่มขวาบน -->
+        <div class="tool-group-right">
+            <label for="geojsonInput" class="ai-tool-btn" title="เปิดแผนที่ GeoJSON">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M9 20L3 17V4L9 7M9 20L15 17M9 20V7M15 17L21 20V7L15 4M15 17V4M9 7L15 4"></path>
+                </svg>
+            </label>
+            <input type="file" id="geojsonInput" accept=".geojson,.json" multiple>
+            
+            <label for="folderInput" class="ai-tool-btn" title="เปิดภาพถ่ายโดรน">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"></path>
+                </svg>
+            </label>
+            <input type="file" id="folderInput" webkitdirectory directory>
+            
+            <!-- ✅ ปุ่มสนับสนุน (ใช้รูปภาพ pay.png) -->
+            <button onclick="openSupportModal()" class="support-btn" title="สนับสนุนผู้พัฒนา">
+                <img src="https://raw.githubusercontent.com/lekgis/land/main/icons/pay.png" 
+                     alt="สนับสนุน"
+                     onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23475569%22 stroke-width=%221.5%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M12 8v8M9 12h6%22/%3E%3C/svg%3E'">
+            </button>
+        </div>
+        
+        <!-- ปุ่มตกลง -->
+        <div id="confirmContainer" class="confirm-btn-container">
+            <button onclick="finishMeasurement()" class="confirm-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                ตกลง
+            </button>
+        </div>
+        
+        <!-- ปุ่มวาด (Undo/Add) -->
+        <div id="drawControls" class="draw-controls">
+            <button onclick="undoPoint()" class="w-11 h-11 rounded-xl bg-white flex items-center justify-center shadow-lg border border-slate-200">
+                <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                </svg>
+            </button>
+            <button onclick="addPointAtCrosshair()" class="ai-fab-add">
+                <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="3">
+                    <path d="M12 4v16m8-8H4" />
+                </svg>
+            </button>
+        </div>
+        
+        <!-- ✅ Modal สนับสนุนผู้พัฒนา -->
+        <div id="supportModal">
+            <div class="support-modal-content">
+                <span class="support-modal-close" onclick="closeSupportModal()">&times;</span>
+                <div class="support-modal-title">💛 สนับสนุนผู้พัฒนา</div>
+                
+                <div class="support-qrcode">
+                    <img id="supportQRImage" 
+                         src="https://raw.githubusercontent.com/lekgis/land/main/icons/qrcode.png" 
+                         alt="QR Code สำหรับสนับสนุน"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22%3E%3Crect fill=%22%23f1f5f9%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2364748b%22 font-size=%2214%22%3EQR Code ไม่พบ%3C/text%3E%3C/svg%3E'">
+                </div>
+                
+                <div class="support-text">
+                    <span class="support-text-line1">1 บาท 5 บาท 10 บาท มีค่าสำหรับผู้พัฒนา</span>
+                    <span>คนบ้านกุดชุมแสง</span>
+                    <span>ขอบพระคุณท่านที่สนับสนุน 🙏</span>
+                </div>
+                
+                <button onclick="saveQRCode()" class="support-btn-save">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5 5-5-5M12 3v12"/>
+                    </svg>
+                    บันทึก qrcode
+                </button>
+            </div>
+        </div>
     </div>
-</div>
 
-<script>
-// 📱 PWA Support Logic
-let deferredPrompt;
-const installContainer = document.getElementById('pwa-install-container');
-const installBtn = document.getElementById('pwa-install-btn');
-const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-if ('serviceWorker' in navigator && isSecure) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-        .then((reg) => console.log('✅ SW registered:', reg.scope))
-        .catch(err => console.warn('❌ SW failed:', err.message));
-    });
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        if (installContainer) {
-            installContainer.style.display = 'block';
-            const btn = document.getElementById('pwa-install-btn');
-            btn.classList.add('animate-bounce');                    
-        }
-    });
-    installBtn?.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`Install ${outcome}`);
-            deferredPrompt = null;
-            if (installContainer) installContainer.style.display = 'none';
-        }
-    });
-    window.addEventListener('appinstalled', () => {
-        console.log('🚀 PWA installed!');
-        if (installContainer) installContainer.style.display = 'none';
-    });
-}
-function showIOSInstallHint() {
-    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    if (isIOS && !isStandalone) {
-        const hint = document.createElement('div');
-        hint.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-white px-5 py-4 rounded-2xl shadow-2xl text-center text-xs max-w-xs';
-        hint.innerHTML = `<p class="font-bold text-blue-600 mb-1">แอปวัดที่ดิน อ.เล็ก 🍎 iPhone</p><p class="text-gray-700">กดปุ่ม <strong>มุนบนขวา</strong> 📤 → <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p><button onclick="this.parentElement.remove()" class="mt-2 text-blue-600">ปิด</button>`;
-        document.body.appendChild(hint);
-    }
-}
-setTimeout(showIOSInstallHint, 3000);
-</script>
-
-<script>
-let map, measureSource, measureVector, draftSource, draftVector;
-let activeMeasureType = null;
-let overlay;
-let moveEndTimeout;
-const NODE_STYLE = new ol.style.Style({
-    image: new ol.style.Circle({
-        radius: 6, fill: new ol.style.Fill({ color: '#ffffff' }),
-        stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2 })
-    })
-});
-const DRAFT_LINE_STYLE = new ol.style.Style({
-    stroke: new ol.style.Stroke({ color: '#ffffff', width: 2, lineDash: [8, 8] })
-});
-const createLabelStyle = (textRows) => {
-    return new ol.style.Text({
-        text: textRows.join('\n'),
-        font: 'bold 14px Prompt, sans-serif',
-        textAlign: 'center',
-        fill: new ol.style.Fill({ color: '#000000' }),
-        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
-        offsetY: 0,
-        lineHeight: 1.4
-    });
-};
-
-// ✅ ✅ ✅ ฟังก์ชันแสดงป้ายแปลงที่ดิน (แก้ไขใหม่) ✅ ✅ ✅
-const parcelStyle = (feature, resolution) => {
-    const view = map.getView();
-    const zoom = view.getZoom();
-    
-    // ✅ ซ่อน label เมื่อซูมออก (ป้องกันหน้าจอมืด/ซ้อนทับ)
-    if (zoom < 18) {
-        return new ol.style.Style({
-            stroke: new ol.style.Stroke({ color: '#ff0000', width: 1 }),
-            fill: new ol.style.Fill({ color: 'rgba(0, 0, 0, 0)' })
-        });
-    }
-    
-    const code = feature.get('parcel_cod') || '';
-    const title = feature.get('title') || '';
-    const fname = feature.get('fname') || '';
-    const lname = feature.get('lname') || '';
-    const ownerName = `${title}${fname} ${lname}`.trim();
-    
-    // ✅ ข้อ 1: ตัดชื่อเจ้าของเมื่อเกิน 20 ตัวอักษร
-    const maxNameLength = 50;
-    const displayName = ownerName.length > maxNameLength 
-        ? ownerName.substring(0, maxNameLength) + '...' 
-        : ownerName;
-    
-    if (!code) {
-        return new ol.style.Style({
-            stroke: new ol.style.Stroke({ color: '#ff0000', width: 1 }),
-            fill: new ol.style.Fill({ color: 'rgba(0, 0, 0, 0)' })
-        });
-    }
-    
-    // ✅ ข้อ 2: สร้าง Style ที่มี Text 2 อันซ้อนกัน (แสดงระดับซูมเดียวกัน)
-    const styles = [
-        new ol.style.Style({
-            stroke: new ol.style.Stroke({ color: '#ff0000', width: 1.5 }),
-            fill: new ol.style.Fill({ color: 'rgba(0, 0, 0, 0)' }) // เติมสีพื้นจางๆ เล็กน้อย
-        })
-    ];
-    
-    // ✅ บรรทัดที่ 1: รหัสแปลง (สีแดงขอบขาว)
-    styles.push(new ol.style.Style({
-        text: new ol.style.Text({
-            text: code.toString(),
-            font: 'bold 12px Prompt, sans-serif',
-            fill: new ol.style.Fill({ color: '#ff0000' }),
-            stroke: new ol.style.Stroke({ color: '#ffffff', width: 2.5 }),
-            offsetY: -12,
-            textAlign: 'center',
-            zIndex: 100
-        })
-    }));
-    
-    // ✅ บรรทัดที่ 2: ชื่อเจ้าของ (สีน้ำเงินขอบขาว) - แสดงเฉพาะเมื่อมีข้อมูล
-    if (displayName) {
-        styles.push(new ol.style.Style({
-            text: new ol.style.Text({
-                text: displayName,
-                font: '12px Prompt, sans-serif',
-                fill: new ol.style.Fill({ color: '#4285F4' }),  // ✅ สีน้ำเงิน
-                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2.7 }),
-                offsetY: 8,  // ✅ วางใต้บรรทัดแรก
-                textAlign: 'center',
-                zIndex: 100
-            })
-        }));
-    }
-    
-    return styles;
-};
-
-function getUTM(lat, lon) {
-    const zone = lon < 102 ? 47 : 48;
-    const x = ((lon - (zone === 47 ? 99 : 105)) * 111319 * Math.cos(lat * Math.PI / 180) + 500000).toFixed(0);
-    const y = (lat * 111132).toFixed(0);
-    return `UTM ${zone}N: ${x}, ${y}`;
-}
-const measureStyle = (feature) => {
-    const geom = feature.getGeometry();
-    const styles = [
-        new ol.style.Style({
-            stroke: new ol.style.Stroke({ color: '#3b82f6', width: 4 }),
-            fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.2)' })
-        })
-    ];
-    if (geom.getType() === 'LineString') {
-        geom.getCoordinates().forEach(coord => {
-            styles.push(new ol.style.Style({ geometry: new ol.geom.Point(coord), image: NODE_STYLE.getImage() }));
-        });
-        const len = ol.sphere.getLength(geom);
-        styles.push(new ol.style.Style({
-            geometry: new ol.geom.Point(geom.getLastCoordinate()),
-            text: createLabelStyle([len > 1000 ? (len/1000).toFixed(2)+' กม.' : len.toFixed(1)+' ม.']),
-            zIndex: 100
-        }));
-    } else if (geom.getType() === 'Polygon') {
-        geom.getCoordinates()[0].forEach(coord => {
-            styles.push(new ol.style.Style({ geometry: new ol.geom.Point(coord), image: NODE_STYLE.getImage() }));
-        });
-        const interiorPoint = geom.getInteriorPoint().getCoordinates();
-        const lonLat = ol.proj.toLonLat(interiorPoint);
-        const area = ol.sphere.getArea(geom);
-        styles.push(new ol.style.Style({
-            geometry: new ol.geom.Point(interiorPoint),
-            text: createLabelStyle([
-                formatThaiArea(area),
-                `LAT/LONG: ${lonLat[1].toFixed(6)}, ${lonLat[0].toFixed(6)}`,
-                getUTM(lonLat[1], lonLat[0])
-            ]),
-            zIndex: 100
-        }));
-    }
-    return styles;
-};
-function init() {
-    const lastPos = JSON.parse(localStorage.getItem('ol_pos_v2') || '{"lon":103.057069,"lat":15.418727,"zoom":16}');
-    const container = document.getElementById('popup');
-    const closer = document.getElementById('popup-closer');
-    overlay = new ol.Overlay({
-        element: container,
-        autoPan: { animation: { duration: 250 } }
-    });
-    closer.onclick = () => { overlay.setPosition(undefined); return false; };
-    const googleSatellite = new ol.layer.Tile({
-        source: new ol.source.XYZ({
-            url: 'https://mt{0-3}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-            maxZoom: 22
-        })
-    });
-    draftVector = new ol.layer.Vector({
-        source: new ol.source.Vector(),
-        style: DRAFT_LINE_STYLE,
-        zIndex: 90,
-        updateWhileInteracting: true,  // ✅ อัปเดตขณะผู้ใช้เลื่อน/แพนแผนที่
-        updateWhileAnimating: true     // ✅ อัปเดตขณะแผนที่กำลังแอนิเมชัน (ซูม, ฟิต)
-    });
-    measureVector = new ol.layer.Vector({
-        source: new ol.source.Vector(),
-        style: measureStyle,
-        zIndex: 100
-    });
-    map = new ol.Map({
-        target: 'map',
-        overlays: [overlay],
-        layers: [googleSatellite, draftVector, measureVector],
-        view: new ol.View({
-            center: ol.proj.fromLonLat([lastPos.lon, lastPos.lat]),
-            zoom: lastPos.zoom,
-            maxZoom: 24,
-            enableRotation: false
-        })
-    });
-    // ✅ เพิ่มส่วนนี้: อัปเดตเส้นปะแบบ Real-time ทุกเฟรมที่แผนที่เรนเดอร์
-    map.on('postrender', function() {
-        // ทำงานเฉพาะตอนเปิดโหมดวัดระยะหรือวัดพื้นที่เท่านั้น
-        if (activeMeasureType) {
-            updateDraftLine();
-        }
-    });
-    measureSource = measureVector.getSource();
-    draftSource = draftVector.getSource();
-    createUserLocationMarker();
-    map.on('singleclick', (evt) => {
-        if (typeof activeMeasureType !== 'undefined' && activeMeasureType) return;
-        const feature = map.forEachFeatureAtPixel(evt.pixel, (feat, layer) => { return feat; }, { hitTolerance: 5 });
-        if (feature) {
-            const props = feature.getProperties();
-            const lonLat = ol.proj.toLonLat(evt.coordinate);
-            let content = `<div class="p-1"><h3 class="font-bold text-blue-600 mb-2 border-b pb-1">ข้อมูลแปลงที่ดิน</h3><table class="w-full text-xs">`;
-            for (const [key, val] of Object.entries(props)) {
-                if (key !== 'geometry' && key !== 'boundedBy') {
-                    const displayVal = (val === null || val === undefined || val === '' || val === 'null') ? '-' : val;
-                    content += `<tr><td class="font-semibold py-0.5 pr-2">${key}:</td><td>${displayVal}</td></tr>`;
-                }
-            }
-            content += `</table><div class="mt-3 pt-2 border-t text-[10px] text-gray-500">${typeof getUTM === 'function' ? getUTM(lonLat[1], lonLat[0]) : ''}</div></div>`;
-            document.getElementById('popup-content').innerHTML = content;
-            overlay.setPosition(evt.coordinate);
-        } else {
-            overlay.setPosition(undefined);
-        }
-    });
-    let moveEndTimeout;
-    map.on('moveend', () => {
-        clearTimeout(moveEndTimeout);
-        moveEndTimeout = setTimeout(() => {
-            const view = map.getView();
-            const center = ol.proj.toLonLat(view.getCenter());
-            localStorage.setItem('ol_pos_v2', JSON.stringify({ lon: center[0], lat: center[1], zoom: view.getZoom() }));
-            if (typeof updateDraftLine === 'function') updateDraftLine();
-        }, 100);
-    });
-}
-function getCrosshairMapCoordinate() {
-    const size = map.getSize();
-    if (!size) return null;
-    // ✅ คำนวณพิกัดจากตำแหน่งกลางจอแนวนอน และ 35% ของความสูงจอ (ตามตำแหน่ง crosshair ใน CSS)
-    return map.getCoordinateFromPixel([size[0] / 2, size[1] * 0.35]);
-}
-function updateDraftLine() {
-    if (!activeMeasureType) return;
-    draftSource.clear();
-    const feats = measureSource.getFeatures();
-    if (!feats.length) return;
-    const cross = getCrosshairMapCoordinate();
-    const geom = feats[0].getGeometry();
-    if (activeMeasureType === 'LineString') {
-        const c = geom.getCoordinates();
-        draftSource.addFeature(new ol.Feature(new ol.geom.LineString([c[c.length - 1], cross])));
-    } else if (activeMeasureType === 'Polygon') {
-        const r = geom.getCoordinates()[0];
-        draftSource.addFeature(new ol.Feature(new ol.geom.LineString([r[r.length - 2], cross])));
-        if (r.length > 3) draftSource.addFeature(new ol.Feature(new ol.geom.LineString([cross, r[0]])));
-    }
-}
-function addPointAtCrosshair() {
-    const cross = getCrosshairMapCoordinate();
-    const feats = measureSource.getFeatures();
-    if (feats.length > 0) {
-        const geom = feats[0].getGeometry();
-        if (activeMeasureType === 'LineString') {
-            const c = geom.getCoordinates(); c.push(cross); geom.setCoordinates(c);
-        } else {
-            const r = geom.getCoordinates()[0]; r.splice(r.length - 1, 0, cross); geom.setCoordinates([r]);
-        }
-    } else {
-        const f = activeMeasureType === 'LineString' 
-            ? new ol.Feature(new ol.geom.LineString([cross, cross]))
-            : new ol.Feature(new ol.geom.Polygon([[cross, cross, cross]]));
-        measureSource.addFeature(f);
-    }
-    document.getElementById('confirmContainer').style.display = 'block';
-    updateDraftLine();
-}
-function undoPoint() {
-    const feats = measureSource.getFeatures();
-    if (!feats.length) return;
-    const geom = feats[0].getGeometry();
-    if (activeMeasureType === 'LineString') {
-        const c = geom.getCoordinates(); 
-        if (c.length > 2) { c.pop(); geom.setCoordinates(c); } else { measureSource.clear(); document.getElementById('confirmContainer').style.display = 'none'; }
-    } else {
-        const r = geom.getCoordinates()[0];
-        if (r.length > 4) { r.splice(r.length - 2, 1); geom.setCoordinates([r]); } else { measureSource.clear(); document.getElementById('confirmContainer').style.display = 'none'; }
-    }
-    updateDraftLine();
-}
-function toggleMeasure(type) {
-    const lineBtn = document.getElementById('measureLineBtn');
-    const areaBtn = document.getElementById('measureAreaBtn');
-    const cross = document.getElementById('crosshair');
-    const ctrl = document.getElementById('drawControls');
-    measureSource.clear(); draftSource.clear();
-    document.getElementById('confirmContainer').style.display = 'none';
-    overlay.setPosition(undefined);
-    if (activeMeasureType === type) {
-        activeMeasureType = null;
-        lineBtn.classList.remove('active'); areaBtn.classList.remove('active');
-        cross.style.display = 'none'; ctrl.style.display = 'none';
-        return;
-    }
-    activeMeasureType = type;
-    lineBtn.classList.toggle('active', type === 'LineString');
-    areaBtn.classList.toggle('active', type === 'Polygon');
-    cross.style.display = 'block'; ctrl.style.display = 'flex';
-}
-function finishMeasurement() {
-    activeMeasureType = null;
-    draftSource.clear();
-    document.getElementById('crosshair').style.display = 'none';
-    document.getElementById('drawControls').style.display = 'none';
-    document.getElementById('confirmContainer').style.display = 'none';
-    document.getElementById('measureLineBtn').classList.remove('active');
-    document.getElementById('measureAreaBtn').classList.remove('active');
-}
-function formatThaiArea(sqm) {
-    const r = Math.floor(sqm/1600), n = Math.floor((sqm%1600)/400), w = ((sqm%400)/4).toFixed(1);
-    
-    // ✅ เพิ่มหน่วย ตร.ม. หรือ ตร.กม. ตามขนาดพื้นที่
-    let metricUnit = '';
-    if (sqm < 1000000) {
-        // น้อยกว่า 1 ตร.กม. → แสดงเป็น ตร.ม. (ทศนิยม 2 ตำแหน่ง)
-        metricUnit = sqm.toLocaleString('th-TH', { maximumFractionDigits: 2 }) + ' ตร.ม.';
-    } else {
-        // 1 ตร.กม. ขึ้นไป → แสดงเป็น ตร.กม. (✅ ปรับเป็นทศนิยม 2 ตำแหน่ง)
-        metricUnit = (sqm / 1000000).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + ' ตร.กม.';
-    }
-    
-    return `พื้นที่: ${r}-${n}-${w} ไร่ ${metricUnit}`;
-}
-// ✅ ตัวแปรจัดการตำแหน่งผู้ใช้
-let userLocationOverlay, accuracyOverlay, watchId = null;
-let isTrackingLocation = false;
-let lastKnownPosition = null;
-
-// ✅ สร้าง Overlay สำหรับจุดตำแหน่งผู้ใช้
-function createUserLocationMarker() {
-    const markerEl = document.createElement('div');
-    markerEl.className = 'user-location-marker';
-    userLocationOverlay = new ol.Overlay({
-        element: markerEl,
-        positioning: 'center-center',
-        stopEvent: false,
-        zIndex: 1000
-    });
-    map.addOverlay(userLocationOverlay);
-
-    const accuracyEl = document.createElement('div');
-    accuracyEl.className = 'accuracy-circle';
-    accuracyEl.style.display = 'none';
-    accuracyOverlay = new ol.Overlay({
-        element: accuracyEl,
-        positioning: 'center-center',
-        stopEvent: false,
-        zIndex: 999
-    });
-    map.addOverlay(accuracyOverlay);
-}
-// ✅ ฟังก์ชันเริ่มติดตามตำแหน่ง (เรียกอัตโนมัติ)
-function startLocationTracking() {
-    if (!navigator.geolocation) {
-        console.warn('⚠️ เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง');
-        return;
-    }
-    
-    isTrackingLocation = true;
-    
-    const options = {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 30000
-    };
-    
-    watchId = navigator.geolocation.watchPosition(
-        (position) => {
-            const { latitude, longitude, accuracy } = position.coords;
-            const coord = ol.proj.fromLonLat([longitude, latitude]);
-            
-            // อัปเดตตำแหน่งจุด marker
-            userLocationOverlay.setPosition(coord);
-            lastKnownPosition = coord;
-            
-            // อัปเดตวงความแม่นยำ (แสดงเฉพาะเมื่อความแม่นยำ <= 50 เมตร)
-            if (accuracyOverlay && accuracy <= 50) {
-                const accElement = accuracyOverlay.getElement();
-                const zoom = map.getView().getZoom();
-                const pixelsPerMeter = Math.pow(2, zoom) * 0.59;
-                const radiusPx = Math.min(accuracy * pixelsPerMeter, 150); // จำกัดขนาดสูงสุด
-                accElement.style.width = `${radiusPx * 2}px`;
-                accElement.style.height = `${radiusPx * 2}px`;
-                accElement.style.display = 'block';
-                accuracyOverlay.setPosition(coord);
-            } else if (accuracyOverlay) {
-                accuracyOverlay.getElement().style.display = 'none';
-            }
-            
-            // ซูมไปตำแหน่งครั้งแรกเท่านั้น
-            if (!userLocationOverlay._initialZoomed) {
-                map.getView().animate({
-                    center: coord,
-                    zoom: 19,
-                    duration: 500
-                });
-                userLocationOverlay._initialZoomed = true;
-            }
-            
-            // อัปเดตพิกัดใน UI (ถ้ามี)
-            const coordDisplay = document.getElementById('coord-display');
-            if (coordDisplay) {
-                coordDisplay.textContent = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-                coordDisplay.classList.remove('hidden');
-            }
-        },
-        (error) => {
-            console.warn('Geolocation error:', error.message);
-            // ไม่แสดง alert เพื่อไม่รบกวนผู้ใช้
-        },
-        options
-    );
-}
-// ✅ ฟังก์ชันหยุดติดตามตำแหน่ง (เรียกอัตโนมัติเมื่อแอปถูกพัก)
-function stopLocationTracking() {
-    isTrackingLocation = false;
-    if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-    }
-    // ไม่ซ่อน marker เพื่อให้ผู้ใช้เห็นตำแหน่งสุดท้าย
-}
-function getCurrentLocation() {
-    if (isTrackingLocation) { stopLocationTracking(); } else {
-        if (!userLocationOverlay) createUserLocationMarker();
-        startLocationTracking();
-    }
-}
-// ✅ ฟังก์ชันซูมไปยังตำแหน่งปัจจุบัน (ปุ่มกดแล้วทำแค่ซูม)
-function zoomToCurrentLocation() {
-    if (lastKnownPosition) {
-        map.getView().animate({
-            center: lastKnownPosition,
-            zoom: 19,
-            duration: 500
-        });
-    } else if (userLocationOverlay?.getPosition()) {
-        map.getView().animate({
-            center: userLocationOverlay.getPosition(),
-            zoom: 19,
-            duration: 500
-        });
-    } else {
-        // ถ้ายังไม่มีตำแหน่ง → ขอตำแหน่งครั้งเดียว
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-                    const coord = ol.proj.fromLonLat([longitude, latitude]);
-                    map.getView().animate({
-                        center: coord,
-                        zoom: 19,
-                        duration: 500
-                    });
-                    lastKnownPosition = coord;
-                    if (userLocationOverlay) userLocationOverlay.setPosition(coord);
-                },
-                () => {},
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
-        }
-    }
-}
-
-// ✅ เริ่มติดตามตำแหน่งอัตโนมัติเมื่อโหลดหน้าเว็บ
-function initAutoLocationTracking() {
-    if (!userLocationOverlay) createUserLocationMarker();
-    startLocationTracking();
-    console.log('เริ่มติดตามตำแหน่งอัตโนมัติ');
-}
-
-// ✅ ✅ ✅ ฟังก์ชันจัดการหน้าต่างสนับสนุน ✅ ✅ ✅
-
-// เปิดหน้าต่างสนับสนุน
-function openSupportModal() {
-    const modal = document.getElementById('supportModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        // รีเซ็ตภาพเพื่อโหลดใหม่
-        const img = document.getElementById('supportQRImage');
-        if (img) img.src = img.src;
-    }
-}
-
-// ปิดหน้าต่างสนับสนุน
-function closeSupportModal() {
-    const modal = document.getElementById('supportModal');
-    if (modal) modal.style.display = 'none';
-}
-
-// ปิด modal เมื่อคลิกนอกเนื้อหา
-document.addEventListener('click', (e) => {
-    const modal = document.getElementById('supportModal');
-    const content = modal?.querySelector('.support-modal-content');
-    if (modal && content && !content.contains(e.target) && e.target === modal) {
-        closeSupportModal();
-    }
-});
-
-// ปิด modal ด้วยปุ่ม ESC
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeSupportModal();
-});
-
-// ✅ ฟังก์ชันบันทึกภาพ QR Code ลงมือถือ
-async function saveQRCode() {
-    const qrUrl = 'https://raw.githubusercontent.com/lekgis/land/main/icons/qrcode.png';
-    const fileName = 'qrcode-support-lekgis.png';
-    
-    try {
-        // ✅ วิธีที่ 1: ใช้ fetch + blob (รองรับมือถือส่วนใหญ่)
-        const response = await fetch(qrUrl);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        
-        // สร้างลิงก์ดาวน์โหลดชั่วคราว
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-        
-        // แสดงข้อความยืนยัน (แบบไม่รบกวน)
-        showToast('✅ บันทึก QR Code เรียบร้อยแล้ว');
-        
-    } catch (error) {
-        console.warn('Fetch failed, trying direct download:', error);
-        
-        // ✅ วิธีที่ 2: Fallback เปิดภาพในแท็บใหม่ (สำหรับบางเบราว์เซอร์)
-        const fallbackMsg = 'หากไม่สามารถบันทึกอัตโนมัติได้ กรุณากดค้างที่ภาพแล้วเลือก "บันทึกภาพ"';
-        if (confirm('⚠️ ไม่สามารถบันทึกอัตโนมัติได้ในอุปกรณ์นี้\n\n' + fallbackMsg + '\n\nต้องการเปิดภาพในแท็บใหม่หรือไม่?')) {
-            window.open(qrUrl, '_blank');
-        }
-    }
-}
-
-// ✅ ฟังก์ชันแสดงข้อความแจ้งเตือนแบบเล็ก (Toast)
-function showToast(message, duration = 2500) {
-    // ลบ toast เก่าถ้ามี
-    const oldToast = document.getElementById('ai-toast');
-    if (oldToast) oldToast.remove();
-    
-    // สร้าง toast ใหม่
-    const toast = document.createElement('div');
-    toast.id = 'ai-toast';
-    toast.style.cssText = `
-        position: fixed;
-        bottom: max(80px, env(safe-area-inset-bottom));
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(30, 41, 59, 0.95);
-        color: white;
-        padding: 12px 24px;
-        border-radius: 12px;
-        font-size: 14px;
-        font-weight: 500;
-        z-index: 10000;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        animation: toastSlide 0.3s ease;
-        max-width: 90%;
-        text-align: center;
-        backdrop-filter: blur(8px);
-    `;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    // ลบอัตโนมัติหลังระยะเวลาที่กำหนด
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(-50%) translateY(20px)';
-        toast.style.transition = 'all 0.2s ease';
-        setTimeout(() => toast.remove(), 200);
-    }, duration);
-}
-
-// ✅ อนิเมชันสำหรับ toast
-const toastStyle = document.createElement('style');
-toastStyle.textContent = `
-    @keyframes toastSlide {
-        from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-        to { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-`;
-document.head.appendChild(toastStyle);
-
-// ✅ จัดการเมื่อแอปถูกพัก/กลับมา (Page Visibility API)
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        // ✅ แอปถูกพัก/หน้าจอปิด → หยุดติดตามเพื่อประหยัดแบตเตอรี่
-        stopLocationTracking();
-        console.log('⏸️ หยุดติดตามตำแหน่ง (แอปถูกพัก)');
-    } else {
-        // ✅ แอปกลับมาทำงาน → เริ่มติดตามใหม่
-        if (!isTrackingLocation) {
-            startLocationTracking();
-            console.log('▶️ เริ่มติดตามตำแหน่งใหม่ (แอปกลับมา)');
-        }
-    }
-});
-
-// ✅ จัดการเมื่อปิดแอป/รีเฟรชหน้า
-window.addEventListener('beforeunload', () => {
-    stopLocationTracking();
-});
-
-// ✅ อัปเดตขนาดวงความแม่นยำเมื่อซูมแผนที่
-map?.on('moveend', () => {
-    if (accuracyOverlay && userLocationOverlay?.getPosition() && isTrackingLocation) {
-        const zoom = map.getView().getZoom();
-        const pixelsPerMeter = Math.pow(2, zoom) * 0.59;
-        const radiusPx = 10 * pixelsPerMeter;
-        const accElement = accuracyOverlay.getElement();
-        accElement.style.width = `${radiusPx * 2}px`;
-        accElement.style.height = `${radiusPx * 2}px`;
-    }
-});
-
-// ✅ ✅ ✅ โหลด GeoJSON (แก้ไข renderMode ให้ป้ายแสดงชัด) ✅ ✅ ✅
-document.getElementById('geojsonInput').addEventListener('change', async (e) => {
-    for (const f of e.target.files) {
-        try {
-            const data = JSON.parse(await f.text());
-            parcelLayer = new ol.layer.Vector({
-                source: new ol.source.Vector({
-                    features: new ol.format.GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' })
-                }),
-                style: parcelStyle,
-                zIndex: 60,
-                declutter: false,              // ✅ ปิด declutter เพื่อให้แสดงป้ายทั้งหมด
-                renderMode: 'vector',          // ✅ เปลี่ยนเป็น vector เพื่อความเสถียรของข้อความ
-                updateWhileAnimating: true,    // ✅ อัปเดตขณะแอนิเมชัน
-                updateWhileInteracting: true   // ✅ อัปเดตขณะเลื่อน/ซูม
-            });
-            parcelLayer.set('isParcelLayer', true);
-            map.addLayer(parcelLayer);
-            console.log(`✅ โหลด GeoJSON สำเร็จ: ${data.features?.length || 0} features`);
-            if (data.features && data.features.length > 0) {
-                const extent = parcelLayer.getSource().getExtent();
-                map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 500 });
-            }
-        } catch (err) {
-            console.error('❌ Error loading GeoJSON:', err);
-            alert('เกิดข้อผิดพลาดในการโหลดไฟล์ GeoJSON');
-        }
-    }
-});
-
-document.getElementById('folderInput').addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files);
-    const tileMap = new Map();
-    let metadataFile = null;
-    files.forEach(file => {
-        const path = file.webkitRelativePath;
-        if (path.endsWith('tilemapresource.xml') || path.endsWith('metadata.json')) { metadataFile = file; }
-        if (/\.(png|jpg|jpeg|webp)$/i.test(path)) { tileMap.set(path, file); }
-    });
-    if (tileMap.size === 0) return;
-    const tileSource = new ol.source.XYZ({
-        tileUrlFunction: (tileCoord) => {
-            const z = tileCoord[0]; const x = tileCoord[1]; const y = tileCoord[2];
-            for (const [path, file] of tileMap) {
-                const nameMatch = path.match(new RegExp(`/${z}/${x}/(-?\\d+)\\.(png|jpg|jpeg|webp)$`, 'i'));
-                if (nameMatch && parseInt(nameMatch[1]) === y) { return URL.createObjectURL(file); }
-            }
-            return null;
-        },
-        maxZoom: 22
-    });
-    const droneLayer = new ol.layer.Tile({ source: tileSource, zIndex: 40 });
-    map.addLayer(droneLayer);
-    map.getView().setZoom(18);
-});
-window.onload = init;
-</script>
+    <!-- ✅ เชื่อมต่อ JavaScript (ลำดับสำคัญ!) -->
+    <script src="js/pwa.js"></script>
+    <script src="js/support.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
