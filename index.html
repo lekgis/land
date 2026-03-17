@@ -145,53 +145,115 @@ body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pro
   opacity: 0;
   pointer-events: none;
 }
-/* ✅ ปุ่มสนับสนุน - รูปเหรียญบาท */
+/* ✅ ปุ่มสนับสนุน - สไตล์เดียวกับ ai-tool-btn */
 .support-btn {
     width: 46px; 
     height: 46px; 
-    border-radius: 50%;
-    background: linear-gradient(145deg, #fbbf24, #f59e0b);
+    border-radius: 14px;                    /* ✅ มุมมนเหมือนปุ่มอื่น */
     display: flex; 
     align-items: center; 
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4), inset 0 2px 4px rgba(255,255,255,0.3);
-    cursor: pointer; 
-    border: 2px solid #d97706;
     transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.95);  /* ✅ พื้นหลังขาวเหมือนปุ่มอื่น */
+    color: #475569;                          /* ✅ สีไอคอนเทาเข้มเหมือนปุ่มอื่น */
+    cursor: pointer; 
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(8px);
     position: relative;
-    overflow: hidden;
-    animation: coinPulse 2s ease-in-out infinite, coinFloat 3s ease-in-out infinite;
+    overflow: visible;                       /* ✅ ให้อนิเมชันไอคอนล้นได้ */
 }
 
+/* ✅ โฮเวอร์: ขยายเล็กน้อย + สีไอคอนเข้มขึ้น (เหมือนปุ่มอื่น) */
 .support-btn:hover {
-    transform: scale(1.1) rotate(5deg);
-    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6), inset 0 2px 4px rgba(255,255,255,0.4);
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    color: #1e293b;
 }
 
 .support-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.98);
 }
 
-/* ✅ อนิเมชันเหรียญ - พัลส์ + ลอย */
-@keyframes coinPulse {
-    0%, 100% { box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4), inset 0 2px 4px rgba(255,255,255,0.3); }
-    50% { box-shadow: 0 4px 20px rgba(245, 158, 11, 0.8), inset 0 2px 4px rgba(255,255,255,0.5); }
-}
-
-@keyframes coinFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-}
-
-/* ✅ ไอคอนเหรียญบาทในปุ่ม */
+/* ✅ ไอคอนเหรียญบาท - ลายเส้นสีเทาดำ เอียง 15 องศา */
 .support-btn svg {
-    width: 28px; 
-    height: 28px; 
-    fill: #78350f;
-    filter: drop-shadow(0 1px 1px rgba(255,255,255,0.5));
+    width: 24px; 
+    height: 24px; 
+    fill: none;                              /* ✅ ไม่เติมสี */
+    stroke: currentColor;                    /* ✅ ใช้สีจาก parent (เทา/ดำ) */
+    stroke-width: 1.8;                       /* ✅ ความหนาเส้นเหมือนปุ่มอื่น */
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transform: rotate(-15deg);               /* ✅ เอียงเล็กน้อยให้ดูโดดเด่น */
+    transition: transform 0.2s ease;
 }
 
-/* ✅ Modal สนับสนุน */
+.support-btn:hover svg {
+    transform: rotate(-15deg) scale(1.1);    /* ✅ ขยายไอคอนเมื่อโฮเวอร์ */
+}
+
+/* ✅ อนิเมชันพัลส์แบบนุ่มนวล (ไม่รบกวนการมองเห็น) */
+@keyframes coinPulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+    50% { box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25); }
+}
+
+.support-btn {
+    animation: coinPulse 3s ease-in-out infinite;
+}
+
+/* ✅ ปุ่มสนับสนุน - สไตล์เดียวกับ ai-tool-btn */
+.support-btn {
+    width: 46px; 
+    height: 46px; 
+    border-radius: 14px;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.95);
+    color: #475569;
+    cursor: pointer; 
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(8px);
+    position: relative;
+    overflow: hidden;
+    padding: 6px;                               /* ✅ เพิ่ม padding สำหรับภาพ */
+}
+
+/* ✅ รูปภาพในปุ่มสนับสนุน */
+.support-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;                       /* ✅ ปรับภาพให้พอดีปุ่ม */
+    transition: transform 0.2s ease;
+}
+
+.support-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.support-btn:hover img {
+    transform: scale(1.1);                     /* ✅ ขยายภาพเล็กน้อยเมื่อโฮเวอร์ */
+}
+
+.support-btn:active {
+    transform: scale(0.98);
+}
+
+/* ✅ อนิเมชันพัลส์แบบนุ่มนวล */
+@keyframes coinPulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+    50% { box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25); }
+}
+
+.support-btn {
+    animation: coinPulse 3s ease-in-out infinite;
+}
+
+/* ✅ Modal สนับสนุน (คงเดิม) */
 #supportModal {
     display: none;
     position: fixed;
@@ -379,13 +441,12 @@ input[type="file"] { display: none; }
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"></path></svg>
         </label>
         <input type="file" id="folderInput" webkitdirectory directory>
-        <!-- ✅ ปุ่มสนับสนุน (เหรียญบาท) -->
+        <!-- ✅ ปุ่มสนับสนุน (สไตล์เดียวกับปุ่มอื่น) -->
+        <!-- ✅ ปุ่มสนับสนุน (ใช้รูปภาพ pay.png) -->
         <button onclick="openSupportModal()" class="support-btn" title="สนับสนุนผู้พัฒนา">
-            <!-- ไอคอนเหรียญบาท (ตัวอักษร ฿) -->
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <text x="12" y="16" font-size="14" font-weight="bold" text-anchor="middle" fill="currentColor">฿</text>
-            </svg>
+            <img src="https://raw.githubusercontent.com/lekgis/land/main/icons/pay.png" 
+                 alt="สนับสนุน"
+                 onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23475569%22 stroke-width=%221.5%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M12 8v8M9 12h6%22/%3E%3C/svg%3E'">
         </button>
     </div>
     <!-- ปุ่มตกลง -->
