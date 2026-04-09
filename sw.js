@@ -1,165 +1,236 @@
 // ========== การตั้งค่าแคช ==========
-const APP_CACHE_NAME = 'gis-survey-app-v2';
-const MAP_CACHE_NAME = 'map-tiles-v2';
+const APP_CACHE_NAME = 'land-survey-app-v3';
+const MAP_CACHE_NAME = 'map-tiles-v3';
+const DYNAMIC_CACHE_NAME = 'dynamic-content-v3';
 
-// ไฟล์แอปที่ต้องการแคช
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/static/icons/lb.ico',
-  '/static/icons/lb-192.png',
-  '/static/icons/lb-512.png'
+// ✅ ไฟล์แอปที่ต้องการแคชทันที (สำคัญ!)
+const STATIC_ASSETS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './pwa.js',
+  './app.js',
+  './support.js',
+  './static/icons/lb-192.png',
+  './static/icons/lb-512.png',
+  'https://cdn.tailwindcss.com',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://unpkg.com/lucide@latest',
+  'https://unpkg.com/@turf/turf@6/turf.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
 ];
 
-// URL ของไทล์แผนที่ที่ต้องการแคช (แก้ไข: ลบช่องว่างต่อท้าย)
-const TILE_URLS = [
-  'https://mt0.google.com',
-  'https://mt1.google.com',
-  'https://mt2.google.com',
-  'https://mt3.google.com'
+// ✅ URL ของไทล์แผนที่ (รองรับทุก subdomain)
+const TILE_PATTERNS = [
+  /^https:\/\/mt[0-3]\.google\.com\/vt\//,
+  /^https:\/\/[a-z]\.tile\.openstreetmap\.org\//
 ];
 
-// ========== Event: Install (ติดตั้ง) ==========
+// ========== Event: Install ==========
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installing...');
+  console.log('🔧 Service Worker installing...');
   
   event.waitUntil(
-    Promise.all([
-      // แคชไฟล์แอปพื้นฐาน
-      caches.open(APP_CACHE_NAME).then((cache) => {
-        console.log('Caching app assets...');
-        return cache.addAll(urlsToCache).catch((err) => {
-          console.warn('Failed to cache app assets:', err);
-        });
-      }),
-      
-      // เตรียมแคชไทล์แผนที่
-      caches.open(MAP_CACHE_NAME).then((cache) => {
-        console.log('Map tile cache ready');
+    caches.open(APP_CACHE_NAME)
+      .then((cache) => {
+        console.log('📦 Caching static assets...');
+        return cache.addAll(STATIC_ASSETS);
       })
-    ]).then(() => {
-      console.log('Service Worker installed successfully');
-      return self.skipWaiting(); // ใช้งานทันทีโดยไม่รอ
-    })
+      .then(() => {
+        console.log('✅ Static assets cached');
+        return self.skipWaiting(); // ใช้งานทันที
+      })
+      .catch((err) => {
+        console.warn('⚠️ Failed to cache some assets:', err);
+      })
   );
 });
 
-// ========== Event: Fetch (ดึงข้อมูล) ==========
-self.addEventListener('fetch', (event) => {
-  const url = event.request.url;
-  
-  // ตรวจสอบว่าเป็นคำขอไทล์แผนที่หรือไม่
-  if (TILE_URLS.some(tileUrl => url.startsWith(tileUrl))) {
-    event.respondWith(
-      handleMapTileRequest(event.request)
-    );
-  } else {
-    // คำขออื่นๆ (ไฟล์แอป, API, etc.)
-    event.respondWith(
-      handleAppRequest(event.request)
-    );
-  }
-});
-
-// จัดการคำขอไทล์แผนที่
-async function handleMapTileRequest(request) {
-  const cache = await caches.open(MAP_CACHE_NAME);
-  
-  try {
-    // 1. ตรวจสอบว่ามีในแคชหรือไม่
-    const cachedResponse = await cache.match(request);
-    
-    // 2. ดึงจากเครือข่ายพร้อมกัน (อัปเดตแคช)
-    const networkFetch = fetch(request).then(async (networkResponse) => {
-      if (networkResponse && networkResponse.status === 200) {
-        // บันทึกหรืออัปเดตในแคช
-        await cache.put(request, networkResponse.clone());
-      }
-      return networkResponse;
-    }).catch(() => {
-      // หากไม่มีอินเทอร์เน็ต ใช้แคช
-      return cachedResponse;
-    });
-    
-    // 3. แสดงจากแคชทันที แล้วอัปเดตจากเครือข่าย
-    return cachedResponse || networkFetch;
-    
-  } catch (err) {
-    console.error('Error handling map tile request:', err);
-    return fetch(request); // กลับไปใช้วิธีปกติ
-  }
-}
-
-// จัดการคำขอไฟล์แอป
-async function handleAppRequest(request) {
-  const cache = await caches.open(APP_CACHE_NAME);
-  
-  try {
-    // ลองดึงจากแคชก่อน
-    const cachedResponse = await cache.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    // หากไม่มีในแคช ดึงจากเครือข่าย
-    const networkResponse = await fetch(request);
-    
-    // บันทึกในแคช (สำหรับไฟล์ที่ไม่ใช่ไทล์)
-    if (request.url.startsWith(self.location.origin)) {
-      cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
-    
-  } catch (err) {
-    console.error('Error handling app request:', err);
-    return caches.match(request); // ลองดึงจากแคชอีกครั้ง
-  }
-}
-
-// ========== Event: Activate (เปิดใช้งาน) ==========
+// ========== Event: Activate ==========
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating...');
+  console.log('🔄 Service Worker activating...');
   
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          // ลบแคชเก่าที่ไม่ใช้แล้ว
-          if (cacheName !== APP_CACHE_NAME && cacheName !== MAP_CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
+        cacheNames
+          .filter((name) => {
+            // ✅ ลบแคชเก่าที่ไม่ใช้แล้ว
+            return name !== APP_CACHE_NAME && 
+                   name !== MAP_CACHE_NAME && 
+                   name !== DYNAMIC_CACHE_NAME;
+          })
+          .map((name) => {
+            console.log('🗑️ Deleting old cache:', name);
+            return caches.delete(name);
+          })
       );
     }).then(() => {
-      console.log('Service Worker activated successfully');
-      return self.clients.claim(); // ใช้งานทันทีกับแท็บที่เปิดอยู่
+      console.log('✅ Old caches cleaned');
+      return self.clients.claim(); // ใช้งานกับแท็บที่เปิดอยู่ทันที
     })
   );
 });
 
-// ========== เคล็ดลับเพิ่มเติม ==========
-// จำกัดขนาดแคชไทล์ (ป้องกันเต็ม)
+// ========== Event: Fetch ==========
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+  
+  // ✅ 1. จัดการไทล์แผนที่ (Cache First, then Network)
+  if (TILE_PATTERNS.some(pattern => pattern.test(url.href))) {
+    event.respondWith(handleMapTile(request));
+    return;
+  }
+  
+  // ✅ 2. จัดการ API Requests (Network First, then Cache)
+  if (url.pathname.includes('/macros/s/') || url.search.includes('action=')) {
+    event.respondWith(handleAPIRequest(request));
+    return;
+  }
+  
+  // ✅ 3. จัดการไฟล์แอป (Cache First, then Network)
+  if (request.mode === 'navigate' || 
+      request.destination === 'script' || 
+      request.destination === 'style' ||
+      request.destination === 'image') {
+    event.respondWith(handleStaticAsset(request));
+    return;
+  }
+  
+  // ✅ 4. คำขออื่นๆ (Network First)
+  event.respondWith(fetch(request));
+});
+
+// ✅ จัดการไทล์แผนที่
+async function handleMapTile(request) {
+  const cache = await caches.open(MAP_CACHE_NAME);
+  
+  // ✅ ลองดึงจากแคชก่อน
+  const cached = await cache.match(request);
+  if (cached) {
+    return cached;
+  }
+  
+  // ✅ ดึงจากเครือข่าย
+  try {
+    const response = await fetch(request);
+    
+    // ✅ บันทึกในแคชถ้าสำเร็จ
+    if (response.ok) {
+      // ✅ จำกัดขนาด: ไม่แคชถ้าใหญ่เกิน 1MB
+      const clone = response.clone();
+      const blob = await clone.blob();
+      
+      if (blob.size < 1024 * 1024) {
+        await cache.put(request, response.clone());
+      }
+    }
+    
+    return response;
+  } catch (err) {
+    console.warn('⚠️ Map tile fetch failed:', err);
+    // ✅ Return placeholder tile ถ้าออฟไลน์
+    return createPlaceholderTile();
+  }
+}
+
+// ✅ สร้างไทล์สำรอง (สีเทา) เมื่อออฟไลน์
+function createPlaceholderTile() {
+  const canvas = new OffscreenCanvas(256, 256);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#e5e7eb';
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = '#9ca3af';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('ออฟไลน์', 128, 128);
+  
+  return canvas.convertToBlob().then(blob => {
+    return new Response(blob, {
+      headers: { 'Content-Type': 'image/png' }
+    });
+  });
+}
+
+// ✅ จัดการ API Requests
+async function handleAPIRequest(request) {
+  // ✅ API ต้องออนไลน์เสมอ → ไม่แคช
+  try {
+    const response = await fetch(request);
+    return response;
+  } catch (err) {
+    console.warn('⚠️ API request failed:', err);
+    return new Response(JSON.stringify({ 
+      error: 'ออฟไลน์', 
+      message: 'กรุณาเชื่อมต่ออินเทอร์เน็ต' 
+    }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ✅ จัดการไฟล์แอป
+async function handleStaticAsset(request) {
+  const cache = await caches.open(APP_CACHE_NAME);
+  
+  // ✅ ลองดึงจากแคชก่อน
+  const cached = await cache.match(request);
+  if (cached) {
+    // ✅ อัปเดตแคชในพื้นหลัง (Stale-While-Revalidate)
+    fetch(request).then(async (response) => {
+      if (response.ok) {
+        await cache.put(request, response.clone());
+      }
+    }).catch(() => {});
+    
+    return cached;
+  }
+  
+  // ✅ ดึงจากเครือข่าย
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (err) {
+    console.warn('⚠️ Static asset fetch failed:', err);
+    // ✅ Return offline page สำหรับ navigation
+    if (request.mode === 'navigate') {
+      return caches.match('./index.html');
+    }
+    return new Response('Offline', { status: 503 });
+  }
+}
+
+// ========== Message Handler ==========
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'CLEAN_MAP_CACHE') {
-    cleanMapCache();
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  
+  if (event.data?.type === 'CLEAN_CACHES') {
+    event.waitUntil(cleanCaches(event.data.keepNames || []));
   }
 });
 
-async function cleanMapCache() {
-  const cache = await caches.open(MAP_CACHE_NAME);
-  const keys = await cache.keys();
+// ✅ ล้างแคช (รักษาชื่อที่ระบุ)
+async function cleanCaches(keepNames = []) {
+  const cacheNames = await caches.keys();
+  const toDelete = cacheNames.filter(name => !keepNames.includes(name));
   
-  // จำกัดจำนวนไทล์ในแคช (เช่น 100 ชิ้น)
-  const MAX_TILES = 300;
-  
-  if (keys.length > MAX_TILES) {
-    // ลบไทล์เก่าที่สุดออก
-    const tilesToDelete = keys.slice(0, keys.length - MAX_TILES);
-    await Promise.all(
-      tilesToDelete.map(key => cache.delete(key))
-    );
-    console.log(`Cleaned map cache: deleted ${tilesToDelete.length} old tiles`);
-  }
+  await Promise.all(toDelete.map(name => caches.delete(name)));
+  console.log('🧹 Cleaned caches:', toDelete);
 }
+
+// ✅ Register Message Port สำหรับสื่อสารกับหน้าเว็บ
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'GET_CACHE_STATUS') {
+    caches.keys().then(names => {
+      event.ports[0]?.postMessage({ caches: names });
+    });
+  }
+});
