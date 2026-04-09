@@ -1,220 +1,105 @@
-/**
- * ✅ Support Functions - ฟังก์ชันช่วยเหลือทั่วไป
- */
+// ไฟล์: js/support.js
 
-// ✅ ตรวจสอบว่าเป็นมือถือหรือไม่
-function isMobile() {
-  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
-
-// ✅ ตรวจสอบว่าเป็น Tablet หรือไม่
-function isTablet() {
-  const ua = navigator.userAgent;
-  return /(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua);
-}
-
-// ✅ ตรวจสอบว่าเป็น Desktop หรือไม่
-function isDesktop() {
-  return !isMobile() && !isTablet();
-}
-
-// ✅ Debounce Function (สำหรับลดการเรียกซ้ำ)
-function debounce(func, wait, immediate = false) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      timeout = null;
-      if (!immediate) func(...args);
-    };
-    const callNow = immediate && !timeout;
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-    if (callNow) func(...args);
-  };
-}
-
-// ✅ Throttle Function (สำหรับจำกัดความถี่)
-function throttle(func, limit) {
-  let inThrottle;
-  return function(...args) {
-    if (!inThrottle) {
-      func.apply(this, args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
+// ✅ ฟังก์ชันจัดการหน้าต่างสนับสนุน
+function openSupportModal() {
+    const modal = document.getElementById('supportModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        const img = document.getElementById('supportQRImage');
+        if (img) img.src = img.src;
     }
-  };
 }
 
-// ✅ Format Number (แสดงทศนิยมตามต้องการ)
-function formatNumber(num, decimals = 2) {
-  if (num === null || num === undefined || isNaN(num)) return '-';
-  return parseFloat(num).toFixed(decimals);
+function closeSupportModal() {
+    const modal = document.getElementById('supportModal');
+    if (modal) modal.style.display = 'none';
 }
 
-// ✅ Format Date ไทย + พ.ศ.
-function formatThaiDate(dateString) {
-  if (!dateString) return '';
-  
-  try {
-    const date = new Date(dateString);
-    const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 
-                    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-    
-    const day = date.getDate();
-    const month = months[date.getMonth()];
-    const year = date.getFullYear() + 543; // พ.ศ.
-    const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-    
-    return `${day} ${month} ${year} ${time}`;
-  } catch (e) {
-    return dateString;
-  }
-}
+// ปิด modal เมื่อคลิกนอกเนื้อหา
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('supportModal');
+    const content = modal?.querySelector('.support-modal-content');
+    if (modal && content && !content.contains(e.target) && e.target === modal) {
+        closeSupportModal();
+    }
+});
 
-// ✅ Copy to Clipboard
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch (err) {
-    // ✅ Fallback สำหรับเบราว์เซอร์เก่า
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.left = '-9999px';
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
+// ปิด modal ด้วยปุ่ม ESC
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSupportModal();
+});
+
+// ✅ ฟังก์ชันบันทึก QR Code
+async function saveQRCode() {
+    const qrUrl = 'https://raw.githubusercontent.com/lekgis/land/main/icons/qrcode.png';
+    const fileName = 'qrcode-support-lekgis.png';
     
     try {
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      return true;
-    } catch (e) {
-      document.body.removeChild(textarea);
-      return false;
+        const response = await fetch(qrUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        
+        showToast('✅ บันทึก QR Code เรียบร้อยแล้ว');
+        
+    } catch (error) {
+        console.warn('Fetch failed, trying direct download:', error);
+        const fallbackMsg = 'หากไม่สามารถบันทึกอัตโนมัติได้ กรุณากดค้างที่ภาพแล้วเลือก "บันทึกภาพ"';
+        if (confirm('⚠️ ไม่สามารถบันทึกอัตโนมัติได้ในอุปกรณ์นี้\n\n' + fallbackMsg + '\n\nต้องการเปิดภาพในแท็บใหม่หรือไม่?')) {
+            window.open(qrUrl, '_blank');
+        }
     }
-  }
 }
 
-// ✅ Download File Helper
-function downloadFile(content, filename, mimeType = 'application/octet-stream') {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  
-  // ✅ Cleanup
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 100);
+// ✅ ฟังก์ชันแสดง Toast
+function showToast(message, duration = 2500) {
+    const oldToast = document.getElementById('ai-toast');
+    if (oldToast) oldToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.id = 'ai-toast';
+    toast.style.cssText = `
+        position: fixed;
+        bottom: max(80px, env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(30, 41, 59, 0.95);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 10000;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        animation: toastSlide 0.3s ease;
+        max-width: 90%;
+        text-align: center;
+        backdrop-filter: blur(8px);
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(20px)';
+        toast.style.transition = 'all 0.2s ease';
+        setTimeout(() => toast.remove(), 200);
+    }, duration);
 }
 
-// ✅ Generate Unique ID
-function generateId(prefix = '') {
-  return `${prefix}${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
-
-// ✅ Parse Query String
-function parseQueryString(url) {
-  const params = {};
-  const queryString = url.split('?')[1];
-  
-  if (!queryString) return params;
-  
-  queryString.split('&').forEach(param => {
-    const [key, value] = param.split('=');
-    params[decodeURIComponent(key)] = decodeURIComponent(value || '');
-  });
-  
-  return params;
-}
-
-// ✅ Build Query String
-function buildQueryString(params) {
-  return Object.entries(params)
-    .map(([key, value]) => 
-      `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
-    )
-    .join('&');
-}
-
-// ✅ LocalStorage Helper (พร้อม Error Handling)
-const Storage = {
-  set(key, value, expiryMinutes = null) {
-    try {
-      const item = {
-        value,
-        timestamp: Date.now(),
-        expiry: expiryMinutes ? Date.now() + (expiryMinutes * 60 * 1000) : null
-      };
-      localStorage.setItem(key, JSON.stringify(item));
-      return true;
-    } catch (e) {
-      console.warn('⚠️ localStorage set failed:', e);
-      return false;
+// ✅ อนิเมชันสำหรับ toast
+const toastStyle = document.createElement('style');
+toastStyle.textContent = `
+    @keyframes toastSlide {
+        from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
-  },
-  
-  get(key) {
-    try {
-      const item = localStorage.getItem(key);
-      if (!item) return null;
-      
-      const parsed = JSON.parse(item);
-      
-      // ✅ ตรวจสอบว่าหมดอายุหรือไม่
-      if (parsed.expiry && Date.now() > parsed.expiry) {
-        localStorage.removeItem(key);
-        return null;
-      }
-      
-      return parsed.value;
-    } catch (e) {
-      console.warn('⚠️ localStorage get failed:', e);
-      return null;
-    }
-  },
-  
-  remove(key) {
-    try {
-      localStorage.removeItem(key);
-      return true;
-    } catch (e) {
-      console.warn('⚠️ localStorage remove failed:', e);
-      return false;
-    }
-  },
-  
-  clear() {
-    try {
-      localStorage.clear();
-      return true;
-    } catch (e) {
-      console.warn('⚠️ localStorage clear failed:', e);
-      return false;
-    }
-  }
-};
-
-// ✅ Export ทั้งหมด
-window.Support = {
-  isMobile,
-  isTablet,
-  isDesktop,
-  debounce,
-  throttle,
-  formatNumber,
-  formatThaiDate,
-  copyToClipboard,
-  downloadFile,
-  generateId,
-  parseQueryString,
-  buildQueryString,
-  Storage
-};
+`;
+document.head.appendChild(toastStyle);
