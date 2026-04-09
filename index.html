@@ -52,23 +52,33 @@
             </svg>
         </div>
         
-        <!-- PWA Install UI -->
-        <div id="pwa-install-container" style="display:none; position:fixed; bottom:100px; left:50%; transform:translateX(-50%); z-index:9999;">
-            <button id="pwa-install-btn" class="bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl font-bold flex items-center gap-2 animate-bounce">
-                <span class="text-xl">📲</span>
-                <div class="text-center leading-tight">
-                    <span class="block">ติดตั้งแอป</span>
-                    <span class="block">วัดที่ดิน อ.เล็ก</span>
-                </div>
-            </button>
+  <!-- ✅ ✅ ✅ PWA Install Banner (ใหม่) ✅ ✅ ✅ -->
+  <div id="pwa-install-banner">
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <img src="static/icons/lb-192.png" alt="Icon" class="w-10 h-10 rounded-lg">
+        <div>
+          <p class="font-bold text-sm">ติดตั้งแอป "วัดที่ดิน"</p>
+          <p class="text-xs opacity-90">ใช้งานแบบออฟไลน์ได้</p>
         </div>
-
-        <!-- ✅ iOS Install Hint -->
-        <div id="ios-install-hint">
-          <p class="font-bold text-blue-600 mb-1">🍎 สำหรับ iPhone/iPad</p>
-          <p class="text-sm text-gray-700">กดปุ่ม <strong>Share</strong> 📤 → <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p>
-          <button id="ios-hint-close" class="mt-2 text-blue-600 text-xs font-bold hover:underline">ปิดคำแนะนำ</button>
-        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="pwa-install-btn" class="bg-white text-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-gray-100 transition">
+          ติดตั้ง
+        </button>
+        <button id="pwa-install-close" class="p-2 hover:bg-white/20 rounded-full transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ✅ iOS Install Hint -->
+  <div id="ios-install-hint">
+    <p class="font-bold text-blue-600 mb-1">🍎 สำหรับ iPhone/iPad</p>
+    <p class="text-sm text-gray-700">กดปุ่ม <strong>Share</strong> 📤 → <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p>
+    <button id="ios-hint-close" class="mt-2 text-blue-600 text-xs font-bold hover:underline">ปิดคำแนะนำ</button>
+  </div>
         
         <!-- ปุ่มตำแหน่งปัจจุบัน -->
         <div class="location-container">
