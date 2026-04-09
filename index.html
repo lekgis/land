@@ -34,6 +34,56 @@
     
     <!-- ✅ เชื่อมต่อไฟล์ CSS แยก -->
     <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ... CSS เดิมของคุณ ... */
+    
+    /* ✅ ปุ่มติดตั้งแอป */
+    #pwa-install-banner {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: white;
+      padding: 12px 16px;
+      z-index: 10000;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+      animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    
+    /* ✅ iOS Hint */
+    #ios-install-hint {
+      display: none;
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+      z-index: 9999;
+      max-width: 90%;
+      text-align: center;
+      animation: bounce 2s infinite;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-10px); }
+    }
+    
+    /* ✅ Cursor สำหรับโหมดคำนวณพื้นที่ */
+    .cursor-crosshair-add {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath stroke='white' stroke-width='2' d='M16 4v24M4 16h24'/%3E%3C/svg%3E") 16 16, crosshair !important;
+    }
+  </style>
 </head>
 <body>
     <div id="map">
@@ -193,9 +243,12 @@
         </div>
     </div>
 
-    <!-- ✅ เชื่อมต่อ JavaScript (ลำดับสำคัญ!) -->
-    <script src="js/pwa.js"></script>
-    <script src="js/support.js"></script>
-    <script src="js/app.js"></script>
+  <!-- ✅ ✅ ✅ สคริปต์ทั้งหมด ✅ ✅ ✅ -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="support.js"></script>
+  <script src="pwa.js"></script>
+  <script src="app.js"></script>
+  
 </body>
 </html>
+
