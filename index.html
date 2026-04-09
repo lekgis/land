@@ -7,13 +7,17 @@
     
     <!-- ✅ Meta Tags สำหรับ PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="วัดที่ดิน">
     <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <meta name="format-detection" content="telephone=no">
     
+    <!-- ✅ Manifest -->
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/x-icon" href="icons/lm.ico">
-    <link rel="apple-touch-icon" href="icons/lm.ico">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/lm-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/lm-512.png">
     
     <!-- ✅ Dependencies -->
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
@@ -25,6 +29,11 @@
     
     <!-- ✅ เชื่อมต่อไฟล์ CSS แยก -->
     <link rel="stylesheet" href="css/style.css">
+    
+    <!-- ✅ iOS Splash Screens (Optional) -->
+    <link rel="apple-touch-startup-image" href="icons/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="icons/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="icons/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
 </head>
 <body>
     <div id="map">
@@ -53,7 +62,73 @@
                 </div>
             </button>
         </div>
-
+        <!-- ✅ iOS Install Hint Modal -->
+        <div id="ios-install-hint" class="fixed inset-0 z-[10000] bg-black/50 hidden items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full animate-scale-in">
+                <div class="p-4 border-b flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-blue-900">🍎 ติดตั้งแอปบนไอโฟน</h3>
+                    <button onclick="closeIOSInstallHint()" class="p-2 hover:bg-gray-100 rounded-full">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="p-4 space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span class="text-blue-600 font-bold">1</span>
+                        </div>
+                        <p class="text-sm text-gray-700">แตะปุ่ม <strong class="text-blue-600">Share</strong> 📤 ที่แถบด้านล่างของ Safari</p>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span class="text-blue-600 font-bold">2</span>
+                        </div>
+                        <p class="text-sm text-gray-700">เลื่อนหาและเลือก <strong class="text-blue-600">"เพิ่มลงในหน้าจอหลัก"</strong></p>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span class="text-blue-600 font-bold">3</span>
+                        </div>
+                        <p class="text-sm text-gray-700">ตั้งชื่อแอปแล้วแตะ <strong class="text-blue-600">"เพิ่ม"</strong></p>
+                    </div>
+                    
+                    <!-- ภาพตัวอย่าง (ใช้ SVG แทนรูปภาพจริง) -->
+                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                        <svg class="w-full max-w-[200px] mx-auto" viewBox="0 0 200 300" fill="none">
+                            <!-- iPhone Frame -->
+                            <rect x="10" y="10" width="180" height="280" rx="20" fill="#1a1a2e" stroke="#333" stroke-width="2"/>
+                            <!-- Screen -->
+                            <rect x="20" y="30" width="160" height="240" rx="8" fill="#fff"/>
+                            <!-- Share Button -->
+                            <rect x="60" y="245" width="80" height="15" rx="7" fill="#007aff"/>
+                            <text x="100" y="255" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif">Share 📤</text>
+                            <!-- Arrow -->
+                            <path d="M100 240 L100 220 M100 220 L90 230 M100 220 L110 230" stroke="#007aff" stroke-width="2" fill="none"/>
+                        </svg>
+                        <p class="text-xs text-gray-500 mt-2">ภาพตัวอย่างขั้นตอน</p>
+                    </div>
+                    
+                    <button onclick="closeIOSInstallHint()" class="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">
+                        เข้าใจแล้ว
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ✅ Toast แจ้งเตือนลอย (สำหรับแสดงคำแนะนำสั้นๆ) -->
+        <div id="ios-toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999] hidden">
+            <div class="bg-white/95 backdrop-blur-sm px-4 py-3 rounded-2xl shadow-2xl border border-blue-200 flex items-center gap-3 animate-fade-in-up max-w-[90vw]">
+                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-xl">🍎</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900">ติดตั้งแอป "วัดที่ดิน" บนไอโฟน</p>
+                    <p class="text-xs text-gray-500">แตะปุ่ม <strong>Share</strong> 📤 → "เพิ่มลงในหน้าจอหลัก"</p>
+                </div>
+                <button onclick="closeIOSToast()" class="p-1.5 hover:bg-gray-100 rounded-full flex-shrink-0">
+                    <i data-lucide="x" class="w-4 h-4 text-gray-400"></i>
+                </button>
+            </div>
+        </div>
         <!-- ปุ่มตำแหน่งปัจจุบัน -->
         <div class="location-container">
             <button onclick="zoomToCurrentLocation()" class="ai-record-btn" id="locationBtn" title="ซูมไปยังตำแหน่งฉัน">
