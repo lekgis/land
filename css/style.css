@@ -548,3 +548,47 @@ input[type="file"] {
 .ol-text { 
     text-shadow: 1px 1px 2px rgba(0,0,0,0.8); 
 }
+/* ✅ แอนิเมชันสำหรับ iOS Install UI */
+@keyframes scale-in {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fade-in-up {
+    from { transform: translate(-50%, 20px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+@keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+.animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+}
+
+.animate-fade-in-up {
+    animation: fade-in-up 0.3s ease-out;
+}
+
+.animate-fade-out {
+    animation: fade-out 0.3s ease-out forwards;
+}
+
+/* ✅ ป้องกันการเลือกข้อความในคำแนะนำ */
+#ios-install-hint, #ios-toast {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ✅ ปรับ Toast ให้เหมาะกับหน้าจอเล็ก */
+#ios-toast .bg-white\/95 {
+    max-width: 320px;
+}
+
+/* ✅ ปรับ Modal สำหรับหน้าจอแนวตั้ง */
+#ios-install-hint .support-modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+}
