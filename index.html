@@ -5,15 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>แอปวัดที่ดิน อ.เล็ก</title>
     
-    <!-- ✅ Meta Tags สำหรับ PWA -->
+    <!-- ✅ PWA Meta Tags (สำคัญมาก!) -->
+    <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="วัดที่ดิน">
-    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="static/icons/lb-192.png">
     
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/x-icon" href="icons/lm.ico">
     <link rel="apple-touch-icon" href="icons/lm.ico">
+
+    <script src="https://cdn.tailwindcss.com"></script>   
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- ✅ Preconnect สำหรับโหลดเร็ว -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
     <!-- ✅ Dependencies -->
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
@@ -54,6 +63,13 @@
             </button>
         </div>
 
+        <!-- ✅ iOS Install Hint -->
+        <div id="ios-install-hint">
+          <p class="font-bold text-blue-600 mb-1">🍎 สำหรับ iPhone/iPad</p>
+          <p class="text-sm text-gray-700">กดปุ่ม <strong>Share</strong> 📤 → <strong>"เพิ่มลงในหน้าจอหลัก"</strong></p>
+          <button id="ios-hint-close" class="mt-2 text-blue-600 text-xs font-bold hover:underline">ปิดคำแนะนำ</button>
+        </div>
+        
         <!-- ปุ่มตำแหน่งปัจจุบัน -->
         <div class="location-container">
             <button onclick="zoomToCurrentLocation()" class="ai-record-btn" id="locationBtn" title="ซูมไปยังตำแหน่งฉัน">
