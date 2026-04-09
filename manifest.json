@@ -1,16 +1,13 @@
 {
-  "name": "วัดที่ดิน",
+  "name": "แอปวัดที่ดิน อ.เล็ก",
   "short_name": "วัดที่ดิน",
-  "start_url": ".",
+  "description": "แอปสำรวจแผนที่ภาษีและสิ่งปลูกสร้าง",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
   "icons": [
-    {
-      "src": "icons/lm.ico",
-      "sizes": "256x256",
-      "type": "image/x-icon"
-    },
     {
       "src": "icons/lm-192.png",
       "sizes": "192x192",
@@ -22,6 +19,19 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "lang": "th",
+  "dir": "ltr",
+  "categories": ["utilities", "productivity"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "เพิ่มจุดใหม่",
+      "short_name": "เพิ่มจุด",
+      "description": "เริ่มเพิ่มจุดสำรวจใหม่",
+      "url": "/?action=add",
+      "icons": [{ "src": "icons/lm-192.png", "sizes": "192x192" }]
     }
   ]
 }
