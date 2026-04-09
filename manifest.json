@@ -1,36 +1,26 @@
 {
-  "name": "วัดที่ดิน - อ.เล็ก GIS",
-  "short_name": "วัดที่ดิน",
-  "description": "แอปวัดพื้นที่และระยะทางบนแผนที่ พร้อมภาพถ่ายโดรน",
-  "start_url": "./index.html",
+  "name": "ปะเคียบ",
+  "short_name": "ปะเคียบ",
+  "description": "แอปสำรวจแผนที่ภาษี",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
-  "orientation": "portrait-primary",
-  "scope": "./",
-  "lang": "th",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "static/icons/lm-192.png",  // ✅ PNG 192x192
+      "src": "static/icons/lb-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "static/icons/lm-512.png",  // ✅ PNG 512x512
+      "src": "static/icons/lb-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "static/screenshots/mobile.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
-  "categories": ["utilities", "productivity"],
-  "prefer_related_applications": false
+  "lang": "th",
+  "dir": "ltr"
 }
